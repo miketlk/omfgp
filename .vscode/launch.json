@@ -1,0 +1,39 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: cap2ijc convert",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/ijctool.py",
+      "console": "integratedTerminal",
+      "args": [
+        "convert",
+        "applet.cap",
+        "applet.ijc",
+      ],
+    },
+    {
+      "name": "Python: cap2ijc dump",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/tools/ijctool.py",
+      "console": "integratedTerminal",
+      "args": [
+        "dump",
+        "-d",
+        "applet.ijc",
+      ],
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
