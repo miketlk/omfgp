@@ -12,6 +12,7 @@
       "console": "integratedTerminal",
       "args": [
         "convert",
+        //"--no-metadata",
         "applet.cap",
         "applet.ijc",
       ],
@@ -24,7 +25,7 @@
       "console": "integratedTerminal",
       "args": [
         "dump",
-        "-d",
+        "--data",
         "applet.ijc",
       ],
     },
