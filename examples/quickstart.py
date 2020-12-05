@@ -13,12 +13,13 @@ if __name__ == '__main__':
     # also opens connection to it
     card = gp.card.GPCard()
     d = card.select()
-    tlv = gp.tlv.TLV.deserialize(d, levels=2)
+    tlv = gp.tlv.TLV.deserialize(d)
     print(tlv)
     # 6f10
     #   8408
     #     a000000151000000
     #   a504
-    #     9f6501ff
+    #     9f6501
+    #       ff
     ISD = tlv.get(0x6f, {}).get(0x84, b"")
     print(ISD.hex())
