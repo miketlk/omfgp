@@ -95,6 +95,21 @@ def test_applet_hash():
         "e45503ea1dfce6dad09fb40d81568d8668aaa752477e102014cd99875a1e634f")
 
 
+def test_applet_bundle():
+    file = open("tests/omfgp/bundle.ijc", "rb")
+    applet = Applet.read_from(file)
+    assert len(applet) == 12456
+    assert applet.package_aid == bytes.fromhex("B00B5111CF")
+    assert applet.applet_aid_list == [
+        bytes.fromhex("B00B5111CF01"), bytes.fromhex("B00B5111CF02"),
+        bytes.fromhex("B00B5111CF03"), bytes.fromhex("B00B5111CF04"),
+        bytes.fromhex("B00B5111CF05")]
+    assert applet.hash(hashlib.sha1()) == bytes.fromhex(
+        "3c6a44e4ce9f52bd1fc55333298c8a5fabfeb21a")
+    assert applet.hash(hashlib.sha256()) == bytes.fromhex(
+        "3233284a0eca951cd87e6fb0de6f373cc7c13d4601bc97ccfa91b3bc51e8000e")
+
+
 # Reference applet as bytes, components are intentionally shuffled
 ref_applet_bytes = bytes.fromhex(
     "02001f000f001f000a00150072002401fc000a003b000001130000000"
