@@ -1,10 +1,10 @@
 from io import BytesIO
 import pytest
-from .tlv import *
-from .tlv import _read_tag
-from .tlv import _read_length
-from .tlv import _serialize_tag
-from .tlv import _serialize_length
+from omfgp.tlv import *
+from omfgp.tlv import _read_tag
+from omfgp.tlv import _read_length
+from omfgp.tlv import _serialize_tag
+from omfgp.tlv import _serialize_length
 
 # Reference SECLECT response
 select_response = bytes.fromhex("6f108408a000000151000000a5049f6501ff")

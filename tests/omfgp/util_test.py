@@ -1,6 +1,5 @@
 import pytest
-from .util import *
-
+from omfgp.util import *
 
 def test_aid_to_str():
     assert aid_to_str(b'\x00') == "0"

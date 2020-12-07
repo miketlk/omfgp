@@ -1,10 +1,4 @@
-try:
-    import omfgp as gp
-except ModuleNotFoundError:
-    import sys
-    sys.path.insert(1, "src")
-    import omfgp as gp
-
+import omfgp as gp
 import time
 
 if __name__ == '__main__':

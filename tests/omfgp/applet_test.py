@@ -2,7 +2,7 @@ from io import BytesIO
 import pytest
 import random
 import hashlib
-from .applet import *
+from omfgp.applet import *
 
 
 def test_header():
@@ -71,9 +71,9 @@ def test_applet_get_data():
     assert applet.get_data(3, 11) == ref_load_data[3: 3 + 11]
     assert applet.get_data(57, 721) == ref_load_data[57: 57 + 721]
     assert applet.get_data(321, 277) == ref_load_data[321: 321 + 277]
-    # Run 100 additional tests fetching data with random offset and size
+    # Run 1000 additional tests fetching data with random offset and size
     random.seed(1)
-    for i in range(100):
+    for i in range(1000):
         off = random.randrange(0, len(applet) - 2)
         size = random.randrange(1, len(applet) - off - 1)
         assert applet.get_data(off, size) == ref_load_data[off: off + size]
