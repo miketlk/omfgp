@@ -1,6 +1,5 @@
 import pytest
 import omfgp.crypto as crypto
-from omfgp.crypto import xor_bytes, _lshift1
 
 
 def test_aes_ecb():
@@ -28,21 +27,7 @@ def test_aes_cbc():
     assert crypto.AES(key, crypto.MODE_CBC, iv).decrypt(ct) == pt
 
 
-def test_xor_bytes():
-    a = bytes.fromhex("123456")
-    b = bytes.fromhex("abcdef")
-    assert xor_bytes(a, b) == bytes.fromhex("b9f9b9")
-    assert xor_bytes(b'', b'') == b''
-    with pytest.raises(ValueError):
-        xor_bytes(a, bytes.fromhex("abcd"))
-
-
-def test_lshift1():
-    data = bytes.fromhex("abcdef123456")
-    assert _lshift1(data) == bytes.fromhex("579bde2468ac")
-
-
-def test_aes_cmac():
+def test_cmac_aes():
     # 128-bit key
     key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")
     mac = crypto.CMAC(crypto.AES, key).mac(b'')
@@ -72,7 +57,7 @@ def test_aes_cmac():
     assert mac == bytes.fromhex("c02e8b66f9fc263b8fb0")
 
 
-def test_aes_cmac_variable_tlen():
+def test_cmac_aes_variable_tlen():
     key = bytes.fromhex("2b7e151628aed2a6abf7158809cf4f3c")
     mac = crypto.CMAC(crypto.AES, key, tlen_bytes=1).mac(b'')
     assert mac == bytes.fromhex("bb")
@@ -86,3 +71,119 @@ def test_aes_cmac_variable_tlen():
         crypto.CMAC(crypto.AES, key, tlen_bytes=0).mac(b'')
     with pytest.raises(ValueError):
         crypto.CMAC(crypto.AES, key, tlen_bytes=17).mac(b'')
+
+
+def test_kbkdf_counter_mode_cmac_aes():
+    # Derive 16 bytes using CMAC-AES128, 1-byte counter before fixed part
+    key = bytes.fromhex("dff1e50ac0b69dc40f1051d46c2b069c")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("c16e6e02c5a3dcc8d78b9ac130687776"
+                                       "1310455b4e41469951d9e6c2245a064b"
+                                       "33fd8c3b01203a7824485bf0a64060c4"
+                                       "648b707d2607935699316ea5"))
+    assert out == bytes.fromhex("8be8f0869b3c0ba97b71863d1b9f7813")
+    # Same test, data is broken in two pieces
+    out = kdf.derive(16, bytes.fromhex("c16e6e02c5a3dcc8d78b9ac130687776"
+                                       "1310455b4e41469951d9e6c2245a064b"
+                                       "33fd8c3b01203a7824485bf0a64060c4"),
+                     bytes.fromhex("648b707d2607935699316ea5"))
+    assert out == bytes.fromhex("8be8f0869b3c0ba97b71863d1b9f7813")
+
+    # Derive 20 bytes using CMAC-AES128, 1-byte counter before fixed part
+    key = bytes.fromhex("7aa9973481d560f3be217ac3341144d8")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(20, bytes.fromhex("46f88b5af7fb9e29262dd4e010143a0a"
+                                       "9c465c627450ec74ab7251889529193e"
+                                       "995c4b56ff55bc2fc8992a0df1ee8056"
+                                       "f6816b7614fba4c12d3be1a5"))
+    assert out == bytes.fromhex("1746ae4f09903f74bfbe1b8ae2b79d74576a3b09")
+
+    # Derive 40 bytes using CMAC-AES128, 1-byte counter before fixed part
+    key = bytes.fromhex("bb31eef5a2ca3bfb342c5800fee67313")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(40, bytes.fromhex("f85ae18f15ce1a5e036d6e3fd227243a"
+                                       "9863f88ef532ce1da810b6639c0928f9"
+                                       "b99fe909487d3748cff857cdb790f89e"
+                                       "09d8c634dccb616cf7a2663a"))
+    assert out == bytes.fromhex("8923d38effde99e24f67dec9330c4f1b"
+                                "874fc382ad644140e73a8e406f405d3f"
+                                "e4b4730b7291275a")
+
+    # Derive 16 bytes using CMAC-AES128, 2-byte counter before fixed part
+    key = bytes.fromhex("30ec5f6fa1def33cff008178c4454211")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=2,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("c95e7b1d4f2570259abfc05bb00730f0"
+                                       "284c3bb9a61d07259848a1cb57c81d8a"
+                                       "6c3382c500bf801dfc8f70726b082cf4"
+                                       "c3fa34386c1e7bf0e5471438"))
+    assert out == bytes.fromhex("00018fff9574994f5c4457f461c7a67e")
+
+    # Derive 16 bytes using CMAC-AES128, 3-byte counter before fixed part
+    key = bytes.fromhex("ca1cf43e5ccd512cc719a2f9de41734c")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=3,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("e3884ac963196f02ddd09fc04c20c88b"
+                                       "60faa775b5ef6feb1faf8c5e098b5210"
+                                       "e2b4e45d62cc0bf907fd68022ee7b156"
+                                       "31b5c8daf903d99642c5b831"))
+    assert out == bytes.fromhex("1cb2b12326cc5ec1eba248167f0efd58")
+
+    # Derive 16 bytes using CMAC-AES128, 4-byte counter before fixed part
+    key = bytes.fromhex("c10b152e8c97b77e18704e0f0bd38305")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=4,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("98cd4cbbbebe15d17dc86e6dbad800a2"
+                                       "dcbd64f7c7ad0e78e9cf94ffdba89d03"
+                                       "e97eadf6c4f7b806caf52aa38f09d0eb"
+                                       "71d71f497bcc6906b48d36c4"))
+    assert out == bytes.fromhex("26faf61908ad9ee881b8305c221db53f")
+
+    # Derive 16 bytes using CMAC-AES128, 1-byte counter after fixed part
+    key = bytes.fromhex("e61a51e1633e7d0de704dcebbd8f962f")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_AFTER_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("5eef88f8cb188e63e08e23c957ee424a"
+                                       "3345da88400c567548b57693931a8475"
+                                       "01f8e1bce1c37a09ef8c6e2ad553dd0f"
+                                       "603b52cc6d4e4cbb76eb6c8f"))
+    assert out == bytes.fromhex("63a5647d0fe69d21fc420b1a8ce34cc1")
+    # Same test, data is broken in two pieces
+    out = kdf.derive(16, bytes.fromhex("5eef88f8cb188e63e08e23c957ee424a"
+                                       "3345da88400c567548b57693931a8475"
+                                       "01f8e1bce1c37a09ef8c6e2ad553dd0f"),
+                     bytes.fromhex("603b52cc6d4e4cbb76eb6c8f"))
+    assert out == bytes.fromhex("63a5647d0fe69d21fc420b1a8ce34cc1")
+
+    # Derive 16 bytes using CMAC-AES128, 1-byte counter in the middle
+    key = bytes.fromhex("b6e04abd1651f8794d4326f4c684e631")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_MIDDLE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("93612f7256c46a3d856d3e951e32dbf1"
+                                       "5fe11159d0b389ad38d603850fee6d18"
+                                       "d22031435ed36ee20da76745fbea4b10fe1e"),
+                     bytes.fromhex("99322aae605a5f01e32b"))
+    assert out == bytes.fromhex("dcb1db87a68762c6b3354779fa590bef")
+
+    # Derive 16 bytes using CMAC-AES256, 1-byte counter before fixed part
+    key = bytes.fromhex("aeb7201d055f754212b3e497bd0b2578"
+                        "9a49e51da9f363df414a0f80e6f4e42c")
+    kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
+                       ctr_loc=crypto.KBKDF.LOC_BEFORE_FIXED,
+                       mode=crypto.KBKDF.MODE_COUNTER)
+    out = kdf.derive(16, bytes.fromhex("11ec30761780d4c44acb1f26ca1eb770"
+                                       "f87c0e74505e15b7e456b019ce0c3810"
+                                       "3c4d14afa1de71d340db514105966275"
+                                       "12cf199fffa20ef8c5f4841e"))
+    assert out == bytes.fromhex("2a9e2fe078bd4f5d3076d14d46f39fb2")

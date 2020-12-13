@@ -1,6 +1,7 @@
 """Cryptographic functions"""
 
 import sys
+from .util import xor_bytes, lshift1_bytes, int_to_bytes_big_endian
 
 if sys.implementation.name == 'micropython':
     import ucryptolib
@@ -48,31 +49,22 @@ else:
             decryptor = self._cipher.decryptor()
             return decryptor.update(in_buf) + decryptor.finalize()
 
+class PRF:
+    """Base class for algorithms usable as a pseudo-random function for KBKDF
+    """
 
-def xor_bytes(a, b):
-    """Returns result of a XOR operation over two byte strings or arrays"""
-    if len(a) != len(b):
-        raise ValueError("Operands have different size")
-    res = bytearray(a)
-    for i, b in enumerate(b):
-        res[i] ^= b
-    return res
+    def prf(self, x):
+        """Invokes a pseudo-random function with a key from PRF instance"""
+        raise NotImplementedError()
 
-
-def _lshift1(data):
-    """Shifts data in byte array or string by one bit left"""
-    res = bytearray(data)
-    if len(data):
-        idx = 0
-        for _ in range(len(data) - 1):
-            res[idx] = (data[idx] << 1) & 0xff | (data[idx + 1] >> 7)
-            idx += 1
-        res[idx] = (data[idx] << 1) & 0xff
-    return res
+    @property
+    def prf_len_bytes(self):
+        """Returns the length of the output of the PRF in bytes"""
+        raise NotImplementedError()
 
 
-class CMAC:
-    """CMAC implementation"""
+class CMAC(PRF):
+    """Block cipher-based MAC algorithm (NIST SP 800-38B)"""
 
     def __init__(self, cipher_class, key, tlen_bytes=None):
         """Creates an instance of CMAC algorithm"""
@@ -80,10 +72,9 @@ class CMAC:
         assert self._ciph.BLOCK_SIZE_BITS % 8 == 0
         self._block_len = int(self._ciph.BLOCK_SIZE_BITS // 8)
         self._K1, self._K2 = self._derive_keys()
-        if tlen_bytes is not None:
-            if not (1 <= tlen_bytes <= self._block_len):
-                raise ValueError("Incorrect MAC length")
-        self.tlen_bytes = tlen_bytes
+        self.tlen_bytes = self._block_len if tlen_bytes is None else tlen_bytes
+        if not (1 <= self.tlen_bytes <= self._block_len):
+            raise ValueError("Incorrect MAC length")
 
     def _derive_keys(self):
         """Derives K1 and K2 keys for CMAC algorithm"""
@@ -98,13 +89,13 @@ class CMAC:
         # Derive K1 and K2
         L = self._ciph.encrypt(bytes(self._block_len))
         if L[0] & 0b10000000:  # Test MSB
-            K1 = xor_bytes(_lshift1(L), R)
+            K1 = xor_bytes(lshift1_bytes(L), R)
         else:
-            K1 = _lshift1(L)
+            K1 = lshift1_bytes(L)
         if K1[0] & 0b10000000:  # Test MSB
-            K2 = xor_bytes(_lshift1(K1), R)
+            K2 = xor_bytes(lshift1_bytes(K1), R)
         else:
-            K2 = _lshift1(K1)
+            K2 = lshift1_bytes(K1)
         return K1, K2
 
     def mac(self, msg):
@@ -122,15 +113,81 @@ class CMAC:
             out_block = self._ciph.encrypt(xor_bytes(in_block, out_block))
             idx += self._block_len
 
-        # Process the final block
+        # Process the final block and return MAC
         if len(msg) - idx == self._block_len:  # Complete block
             in_block = xor_bytes(msg[idx:], self._K1)
         else:  # Incomplete block
             z = self._block_len - (len(msg) - idx) - 1
             in_block = xor_bytes(msg[idx:] + b'\x80' + z * b'\x00', self._K2)
         res = self._ciph.encrypt(xor_bytes(in_block, out_block))
+        return res[:self.tlen_bytes]
 
-        # Return MAC
-        if self.tlen_bytes:
-            return res[:self.tlen_bytes]
-        return res
+    def prf(self, x):
+        """Invokes a pseudo-random function with a key from PRF instance"""
+        return self.mac(x)
+
+    @property
+    def prf_len_bytes(self):
+        """Returns the length of the output of the PRF in bytes"""
+        return self.tlen_bytes
+
+
+class KBKDF:
+    """Key-based key derivation function (NIST SP 800-108)"""
+
+    # Configures KDF in counter mode
+    MODE_COUNTER = 1
+
+    # Counter before fixed input data
+    LOC_BEFORE_FIXED = 1
+    # Counter after fixed input data
+    LOC_MIDDLE_FIXED = 2
+    # Counter in middle of fixed input data before context
+    LOC_AFTER_FIXED = 3
+
+    def __init__(self, prf_inst: PRF, ctrlen_bytes, ctr_loc: int, mode: int):
+        """Creates an instance of KDF"""
+        if mode == KBKDF.MODE_COUNTER:
+            assert prf_inst.prf_len_bytes >= 1
+            self._prf_inst = prf_inst
+            self._ctrlen_bytes = ctrlen_bytes
+            self._ctr_loc = ctr_loc
+            self._derive_fn = self._derive_in_counter_mode
+        else:
+            raise NotImplementedError("Mode not supported")
+
+    def _make_input_block(self, ctr, data1, data2):
+        """Composes input block for PRF"""
+        ctr_bytes = int_to_bytes_big_endian(ctr, self._ctrlen_bytes)
+        if self._ctr_loc == KBKDF.LOC_BEFORE_FIXED:
+            return ctr_bytes + data1 + data2
+        elif self._ctr_loc == KBKDF.LOC_MIDDLE_FIXED:
+            return data1 + ctr_bytes + data2
+        elif self._ctr_loc == KBKDF.LOC_AFTER_FIXED:
+            return data1 + data2 + ctr_bytes
+        else:
+            raise ValueError("Invalid counter location")
+
+    def _derive_in_counter_mode(self, len_bytes, data1, data2=b'', iv=None):
+        """Derives key material"""
+        if len_bytes == 0:
+            return b''
+        n_blocks = -(len_bytes // -self._prf_inst.prf_len_bytes)
+        if n_blocks > (256 ** self._ctrlen_bytes) - 1:
+            raise ValueError("Counter overflow")
+
+        result = bytearray()
+        ctr = 1
+        len_remainder = len_bytes % self._prf_inst.prf_len_bytes
+        for _ in range(n_blocks):
+            in_block = self._make_input_block(ctr, data1, data2)
+            if ctr == n_blocks and len_remainder:
+                result += self._prf_inst.prf(in_block)[:len_remainder]
+            else:
+                result += self._prf_inst.prf(in_block)
+            ctr += 1
+
+        return result
+
+    def derive(self, len_bytes, data1, data2=b'', iv=None):
+        return self._derive_fn(len_bytes, data1, data2, iv)
