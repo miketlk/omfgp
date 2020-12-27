@@ -5,7 +5,7 @@ if __name__ == '__main__':
     # GP card instance using
     # first available reader
     # also opens connection to it
-    card = gp.card.GPCard()
+    card = gp.card.GPCard(debug=True)
     d = card.select()
     tlv = gp.tlv.TLV.deserialize(d)
     print(tlv)

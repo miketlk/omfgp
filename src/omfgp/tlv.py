@@ -1,6 +1,7 @@
 """BER-TLV encoder and decoder"""
 
 from io import BytesIO
+from .util import bytes_to_int_big_endian
 
 # TODO: move to other place
 TAGS = {
@@ -52,11 +53,7 @@ def _read_length(io_obj: BytesIO):
     if len(b) != rm_bytes:
         raise RuntimeError("Not TLV, can't read length")
 
-    # Convert manually because int.from_bytes() is incomplete in MicroPython
-    length = 0
-    for x in b:
-        length = length << 8 | x
-    return length
+    return bytes_to_int_big_endian(b)
 
 
 def _serialize_tag(tag: int):

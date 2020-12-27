@@ -2,6 +2,14 @@ import pytest
 import omfgp.crypto as crypto
 
 
+def test_random():
+    a = crypto.random(16)
+    b = crypto.random(16)
+    c = crypto.random(16)
+    assert len(a) == 16 and len(b) == 16 and len(c) == 16
+    assert a != b and a != c and b != c
+
+
 def test_aes_ecb():
     key = bytes.fromhex("000102030405060708090a0b0c0d0e0f"
                         "101112131415161718191a1b1c1d1e1f")
@@ -187,3 +195,80 @@ def test_kbkdf_counter_mode_cmac_aes():
                                        "3c4d14afa1de71d340db514105966275"
                                        "12cf199fffa20ef8c5f4841e"))
     assert out == bytes.fromhex("2a9e2fe078bd4f5d3076d14d46f39fb2")
+
+
+def test_add_padding():
+    assert crypto.add_padding(b'', 16) == bytes.fromhex(
+        "80000000000000000000000000000000")
+    assert crypto.add_padding(b'\x01', 16) == bytes.fromhex(
+        "01800000000000000000000000000000")
+    assert crypto.add_padding(b'\x80', 16) == bytes.fromhex(
+        "80800000000000000000000000000000")
+    assert crypto.add_padding(bytes.fromhex("010203"), 16) == bytes.fromhex(
+        "01020380000000000000000000000000")
+    assert crypto.add_padding(
+        bytes.fromhex("010203040506070809101112131415"), 16) == bytes.fromhex(
+        "01020304050607080910111213141580")
+    assert crypto.add_padding(
+        bytes.fromhex("01020304050607080910111213141516"), 16) == bytes.fromhex(
+        "0102030405060708091011121314151680000000000000000000000000000000")
+
+
+def test_add_padding_aes():
+    aes = crypto.AES(16 * b'\0', crypto.MODE_CBC, 16 * b'\0')
+    assert aes.add_padding(b'') == bytes.fromhex(
+        "80000000000000000000000000000000")
+    assert aes.add_padding(bytes.fromhex("010203")) == bytes.fromhex(
+        "01020380000000000000000000000000")
+    assert aes.add_padding(
+        bytes.fromhex("01020304050607080910111213141516")) == bytes.fromhex(
+        "0102030405060708091011121314151680000000000000000000000000000000")
+
+
+def test_remove_padding():
+    assert crypto.remove_padding(
+        bytes.fromhex("80000000000000000000000000000000"), 16) == b''
+    assert crypto.remove_padding(
+        bytes.fromhex("01800000000000000000000000000000"), 16) == b'\x01'
+    assert crypto.remove_padding(
+        bytes.fromhex("80800000000000000000000000000000"), 16) == b'\x80'
+    assert crypto.remove_padding(
+        bytes.fromhex("01020380000000000000000000000000"), 16) == bytes.fromhex(
+            "010203")
+    assert crypto.remove_padding(
+        bytes.fromhex("01020304050607080910111213141580"), 16) == bytes.fromhex(
+        "010203040506070809101112131415")
+    assert crypto.remove_padding(
+        bytes.fromhex("01020304050607080910111213141516"
+                      "80000000000000000000000000000000"), 16) == bytes.fromhex(
+        "01020304050607080910111213141516")
+
+def test_remove_padding_fail():
+    with pytest.raises(ValueError):
+        # Empty data
+        crypto.remove_padding(b'', 16)
+    with pytest.raises(ValueError):
+        # No 0x80 byte
+        crypto.remove_padding(
+            bytes.fromhex("00000000000000000000000000000000"), 16)
+    with pytest.raises(ValueError):
+        # Length is not a multiple of block size
+        crypto.remove_padding(
+            bytes.fromhex("800000000000000000000000000000"), 16)
+    with pytest.raises(ValueError):
+        # Invalid byte inside padding part (0x01)
+        crypto.remove_padding(
+            bytes.fromhex("8001000000000000000000000000000"), 16)
+
+
+def test_remove_padding_aes():
+    aes = crypto.AES(16 * b'\0', crypto.MODE_CBC, 16 * b'\0')
+    assert aes.remove_padding(
+        bytes.fromhex("80000000000000000000000000000000")) == b''
+    assert aes.remove_padding(
+        bytes.fromhex("01020380000000000000000000000000")) == bytes.fromhex(
+            "010203")
+    assert aes.remove_padding(
+        bytes.fromhex("01020304050607080910111213141516"
+                      "80000000000000000000000000000000")) == bytes.fromhex(
+        "01020304050607080910111213141516")

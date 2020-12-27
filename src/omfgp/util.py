@@ -30,7 +30,7 @@ def aid_to_str(aid: bytes):
     return s[1:] if s.startswith("0") else s
 
 
-def int_to_bytes_big_endian(x: int, n_bytes):
+def int_to_bytes_big_endian(x: int, n_bytes: int) -> bytearray:
     """Converts integer to bytes in big endian mode"""
     if x >= 256 ** n_bytes:
         raise ValueError("Conversion overflow")
@@ -41,7 +41,15 @@ def int_to_bytes_big_endian(x: int, n_bytes):
         shift += 8
     return res
 
-def xor_bytes(a, b):
+# Added because int.from_bytes() is incomplete in MicroPython
+def bytes_to_int_big_endian(data: bytes) -> int:
+    """Converts bytes to integer in big endian mode"""
+    res = 0
+    for x in data:
+        res = (res << 8) | x
+    return res
+
+def xor_bytes(a: bytes, b: bytes) -> bytearray:
     """Returns result of a XOR operation over two byte strings or arrays"""
     if len(a) != len(b):
         raise ValueError("Operands have different size")
@@ -51,7 +59,7 @@ def xor_bytes(a, b):
     return res
 
 
-def lshift1_bytes(data):
+def lshift1_bytes(data: bytes) -> bytearray:
     """Shifts data in byte array or string by one bit left"""
     res = bytearray(data)
     if len(data):
@@ -61,3 +69,14 @@ def lshift1_bytes(data):
             idx += 1
         res[idx] = (data[idx] << 1) & 0xff
     return res
+
+class ProgressCallback:
+    """Safe wrapper for progress callback"""
+    def __init__(self, progress_cb=None):
+        """Creates new wrapper"""
+        self._callback = progress_cb
+
+    def __call__(self, percent):
+        """Forwards a call to progress callback"""
+        if callable(self._callback):
+            self._callback(percent)

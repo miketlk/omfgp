@@ -7,7 +7,7 @@ ERRORCODES = {
     b'\x68\x81': "Logical channel not supported or is not active",
     b'\x68\x82': "Secure messaging not supported",
     b'\x68\x83': "The last command of the chain was expected",
-    b'\x69\x82': "Security status not satisfied",
+    b'\x69\x82': "Security status not satisfied (card locked?)",
     b'\x69\x85': "Conditions of use not satisfied",
     b'\x6A\x80': "Incorrect values in command data",
     b'\x6A\x81': "Function not supported (e.g. the card is locked)",
@@ -21,8 +21,9 @@ ERRORCODES = {
     b'\x94\x85': "Invalid key check value"
 }
 
+SUCCESS = b'\x90\x00'
 SUCCESSCODES = {
-    b'\x90\x00': "Success"
+    SUCCESS: "Success"
 }
 
 WARNINGCODES = {
@@ -31,12 +32,17 @@ WARNINGCODES = {
 }
 
 
-def response_text(data):
-    """Returns response text from full response data or SW1 & SW2 bytes"""
-    sw = data[-2:]
-    if sw[0] == 0x61:
+def response_text(sw_bytes):
+    """Returns response text from status bytes"""
+    if sw_bytes[0] == 0x61:
         return "Response data incomplete, {} more bytes available"\
-            "".format(sw[1])
+            "".format(sw_bytes[1])
     return SUCCESSCODES.get(
-        sw, WARNINGCODES.get(sw, ERRORCODES.get(sw, "<unknown>"))
+        sw_bytes, WARNINGCODES.get(
+            sw_bytes, ERRORCODES.get(sw_bytes, "<unknown>"))
     )
+
+
+def is_error(sw_bytes):
+    """Checks if status bytes indicate an error"""
+    return not (sw_bytes == SUCCESS or sw_bytes[0] in (0x62, 0x63))

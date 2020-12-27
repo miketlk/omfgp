@@ -3,6 +3,15 @@
 import sys
 from .util import xor_bytes, lshift1_bytes, int_to_bytes_big_endian
 
+try:
+    from rng import get_random_bytes
+    # Alias for random(n) function
+    random = get_random_bytes
+except:
+    import os
+    # Alias for random(n) function
+    random = os.urandom
+
 if sys.implementation.name == 'micropython':
     import ucryptolib
     # Electronic Code Book (ECB) mode of operation
@@ -11,8 +20,17 @@ if sys.implementation.name == 'micropython':
     MODE_CBC = ucryptolib.MODE_CBC
 
     class AES(ucryptolib.aes):
-        # Block size in bits
-        BLOCK_SIZE_BITS = 128
+        # Block size in bytes
+        BLOCK_N_BYTES = 128//8
+
+        def add_padding(self, data: bytes):
+            """Adds 0x80... padding according to NIST 800-38A"""
+            return add_padding(data, self.BLOCK_N_BYTES)
+
+        def remove_padding(self, data: bytes):
+            """Removes 0x80... padding according to NIST 800-38A"""
+            return remove_padding(data, self.BLOCK_N_BYTES)
+
 else:
     from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     from cryptography.hazmat.backends import default_backend
@@ -25,8 +43,8 @@ else:
     class AES:
         """AES block cipher"""
 
-        # Block size in bits
-        BLOCK_SIZE_BITS = 128
+        # Block size in bytes
+        BLOCK_N_BYTES = 128//8
 
         def __init__(self, key, mode: int, IV=None):
             """Creates AES block cipher"""
@@ -49,6 +67,15 @@ else:
             decryptor = self._cipher.decryptor()
             return decryptor.update(in_buf) + decryptor.finalize()
 
+        def add_padding(self, data: bytes):
+            """Adds 0x80... padding according to NIST 800-38A"""
+            return add_padding(data, self.BLOCK_N_BYTES)
+
+        def remove_padding(self, data: bytes):
+            """Removes 0x80... padding according to NIST 800-38A"""
+            return remove_padding(data, self.BLOCK_N_BYTES)
+
+
 class PRF:
     """Base class for algorithms usable as a pseudo-random function for KBKDF
     """
@@ -69,8 +96,7 @@ class CMAC(PRF):
     def __init__(self, cipher_class, key, tlen_bytes=None):
         """Creates an instance of CMAC algorithm"""
         self._ciph = cipher_class(key, MODE_ECB)
-        assert self._ciph.BLOCK_SIZE_BITS % 8 == 0
-        self._block_len = int(self._ciph.BLOCK_SIZE_BITS // 8)
+        self._block_len = int(self._ciph.BLOCK_N_BYTES)
         self._K1, self._K2 = self._derive_keys()
         self.tlen_bytes = self._block_len if tlen_bytes is None else tlen_bytes
         if not (1 <= self.tlen_bytes <= self._block_len):
@@ -79,9 +105,9 @@ class CMAC(PRF):
     def _derive_keys(self):
         """Derives K1 and K2 keys for CMAC algorithm"""
         # Select R constant
-        if self._ciph.BLOCK_SIZE_BITS == 128:
+        if self._ciph.BLOCK_N_BYTES == 16:  # 128 bit
             R = 15 * b'\x00' + b'\x87'  # 000...010000111
-        elif self._ciph.BLOCK_SIZE_BITS == 64:
+        elif self._ciph.BLOCK_N_BYTES == 8:  # 64 bit
             R = 7 * b'\x00' + b'\x1b'  # 000...011011
         else:
             raise ValueError("Cipher has unsupported block size")
@@ -140,9 +166,9 @@ class KBKDF:
 
     # Counter before fixed input data
     LOC_BEFORE_FIXED = 1
-    # Counter after fixed input data
-    LOC_MIDDLE_FIXED = 2
     # Counter in middle of fixed input data before context
+    LOC_MIDDLE_FIXED = 2
+    # Counter after fixed input data
     LOC_AFTER_FIXED = 3
 
     def __init__(self, prf_inst: PRF, ctrlen_bytes, ctr_loc: int, mode: int):
@@ -191,3 +217,25 @@ class KBKDF:
 
     def derive(self, len_bytes, data1, data2=b'', iv=None):
         return self._derive_fn(len_bytes, data1, data2, iv)
+
+
+def add_padding(data: bytes, block_n_bytes: int) -> bytes:
+    """Adds 0x80... padding according to NIST 800-38A"""
+    res = data + b'\x80'
+    len_remainder = len(res) % block_n_bytes
+    if len_remainder != 0:
+        res += b'\0' * (block_n_bytes - len_remainder)
+    return res
+
+
+def remove_padding(data: bytes, block_n_bytes: int) -> bytes:
+    """Removes 0x80... padding according to NIST 800-38A"""
+    if len(data) % block_n_bytes != 0:
+        raise ValueError("Invalid data")
+
+    for i in range(len(data) - 1, -1, -1):
+        if data[i] == 0x80:
+            return data[:i]
+        elif data[i] != 0x00:
+            raise ValueError("Invalid padding")
+    raise ValueError("Invalid padding")
