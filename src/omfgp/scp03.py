@@ -84,11 +84,10 @@ class SCP03:
     version = 3
 
     def __init__(self, card_obj, iu_response, keys: StaticKeys,
-                 security_level: SecurityLevel, host_challenge, sd_aid,
-                 block_size, buggy_icv_counter):
+                 security_level: SecurityLevel, host_challenge,
+                 block_size, buggy_icv_counter, **options):
         self._debug = card_obj.debug
         self._security_level = security_level
-        self._sd_aid = sd_aid
         self._block_size = _compute_block_size(block_size, security_level)
         self._buggy_icv_counter = buggy_icv_counter
 
@@ -135,6 +134,7 @@ class SCP03:
         if card_cryptogram_check != card_cryptogram:
             raise RuntimeError("Invalid card authentication cryptogram")
 
+        # Authenticate host with EXTERNAL AUTHENTICATE selecting security level
         p1p2 = bytes([security_level, 0])
         _, sw = card_obj.request_full(
             self.wrap_apdu(EXTERNAL_AUTHENTICATE + p1p2 +

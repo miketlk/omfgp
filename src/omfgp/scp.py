@@ -13,6 +13,11 @@ IU_RESP_SCP_ID = IU_RESP_KEY_VER + 1
 # Static keys of secure channel
 StaticKeys = namedtuple('StaticKeys', ['key_enc', 'key_mac', 'key_dek'])
 
+# Default keys
+DEFAULT_KEYS = StaticKeys(
+    key_enc=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
+    key_mac=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
+    key_dek=bytes.fromhex("404142434445464748494A4B4C4D4E4F"))
 
 class SecurityLevel(int):
     """ Bit values used by EXTERNAL AUTHENTICATE command"""

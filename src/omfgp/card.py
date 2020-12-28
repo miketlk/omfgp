@@ -105,10 +105,9 @@ class GPCard:
         params = b'\x04\x00'
         return self.request(commands.SELECT + params + encode(aid))
 
-    def open_secure_channel(self, keys: scp.StaticKeys,
-                            security_level: int = scp.SecurityLevel.C_MAC,
-                            host_challenge=None, progress_cb=None):
+    def open_secure_channel(self, keys: scp.StaticKeys = scp.DEFAULT_KEYS,
+                            progress_cb=None, **scp_options):
         if self._scp_inst is not None:
-            raise RuntimeError("Secure channel is already open")
+            self._scp_inst.close()
         self._scp_inst = scp_session.open_secure_channel(
-            self, keys, security_level, host_challenge, progress_cb)
+            self, keys=keys, progress_cb=progress_cb, **scp_options)

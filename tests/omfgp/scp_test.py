@@ -6,12 +6,6 @@ from omfgp.scp_session import *
 from omfgp.commands import *
 from omfgp.status import *
 
-# Default keys
-DEF_KEYS = StaticKeys(
-    key_enc=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
-    key_mac=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
-    key_dek=bytes.fromhex("404142434445464748494A4B4C4D4E4F"))
-
 
 def test_security_level():
     sl = SecurityLevel
@@ -56,7 +50,7 @@ def test_scp03_clear(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("2E6805A2847B9844"),
+        fake_card, host_challenge=bytes.fromhex("2E6805A2847B9844"),
         progress_cb=progress_cb, security_level=SecurityLevel.CLEAR,
         block_size=213)
     assert scp.version == 3
@@ -92,7 +86,7 @@ def test_scp03_C_MAC_Key_DEK(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("68E9C8799FF8CB46"),
+        fake_card, host_challenge=bytes.fromhex("68E9C8799FF8CB46"),
         progress_cb=progress_cb, block_size=213)
     assert scp.version == 3
     assert scp.block_size == 205
@@ -137,7 +131,7 @@ def test_scp03_C_DECRYPTION_C_MAC(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("CC8A0407F63066E8"),
+        fake_card, host_challenge=bytes.fromhex("CC8A0407F63066E8"),
         progress_cb=progress_cb,
         security_level=SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC,
         block_size=213)
@@ -176,7 +170,7 @@ def test_scp03_C_MAC_R_MAC(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("CB6DA009E0404A67"),
+        fake_card, host_challenge=bytes.fromhex("CB6DA009E0404A67"),
         progress_cb=progress_cb,
         security_level=SecurityLevel.R_MAC | SecurityLevel.C_MAC,
         block_size=213)
@@ -227,7 +221,7 @@ def test_scp03_C_DECRYPTION_C_MAC_R_MAC(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("F70E1C5D67085E4B"),
+        fake_card, host_challenge=bytes.fromhex("F70E1C5D67085E4B"),
         progress_cb=progress_cb,
         security_level=(SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC |
                         SecurityLevel.R_MAC),
@@ -282,7 +276,7 @@ def test_scp03_C_DECRYPTION_R_ENCRYPTION_C_MAC_R_MAC(mocker: MockerFixture):
     }, debug=True)
     progress_cb = mocker.stub()
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("0C980267C298D194"),
+        fake_card, host_challenge=bytes.fromhex("0C980267C298D194"),
         progress_cb=progress_cb,
         security_level=(
             SecurityLevel.C_DECRYPTION | SecurityLevel.R_ENCRYPTION |
@@ -324,6 +318,7 @@ def test_scp03_C_DECRYPTION_R_ENCRYPTION_C_MAC_R_MAC(mocker: MockerFixture):
         "00000151000000"), SUCCESS)
     assert scp.unwrap_response(*response) == response_uw
 
+
 def test_scp03_Key_DEK():
     # Establish SCP03 connection
     # Security level: clear (no secure messaging)
@@ -336,7 +331,7 @@ def test_scp03_Key_DEK():
             bytes.fromhex("684C48D43FEDEFD990252090A826F975"), b'', SUCCESS)
     }, debug=True)
     scp = open_secure_channel(
-        fake_card, DEF_KEYS, host_challenge=bytes.fromhex("2E6805A2847B9844"),
+        fake_card, host_challenge=bytes.fromhex("2E6805A2847B9844"),
         security_level=SecurityLevel.CLEAR)
     assert scp.version == 3
 
