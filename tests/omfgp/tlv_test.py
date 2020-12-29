@@ -65,6 +65,8 @@ def test_read_length():
 def test_deserialize():
     assert TLV.deserialize(b'\x5f\x1f\x83\x00\x00\x05Hello') == {
         0x5f1f: b'Hello'}
+    assert (TLV.deserialize(b'\x01\x05Hello\x01\x05world') ==
+            {0x01: [b'Hello', b'world']})
     assert TLV.deserialize(select_response) == select_response_deserialized
 
 
@@ -88,4 +90,6 @@ def test_serialize_length():
 
 def test_serialize():
     assert TLV({0x5f1f: b'Hello'}).serialize() == b'\x5f\x1f\x05Hello'
+    assert (TLV({0x01: [b'Hello', b'world']}).serialize() ==
+            b'\x01\x05Hello\x01\x05world')
     assert TLV(select_response_deserialized).serialize() == select_response

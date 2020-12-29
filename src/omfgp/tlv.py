@@ -97,7 +97,15 @@ class TLV(dict):
                 raise RuntimeError("Not TLV, can't read value")
             if flag_constructed:
                 v = TLV.deserialize(v)
-            o[tag] = v
+            if tag in o:
+                # Merge identical tags into list
+                v_prev = o[tag]
+                if isinstance(v_prev, list):
+                    v_prev.append(v)
+                else:
+                    o[tag] = [o[tag], v]
+            else:
+                o[tag] = v
         return cls(o)
 
     def serialize(self):
@@ -109,5 +117,12 @@ class TLV(dict):
                 value = value.serialize()
             elif isinstance(value, dict):
                 value = TLV(value).serialize()
-            res += _serialize_tag(tag) + _serialize_length(len(value)) + value
+
+            if isinstance(value, list):
+                for subv in value:
+                    res += (_serialize_tag(tag) +
+                            _serialize_length(len(subv)) + subv)
+            else:
+                res += (_serialize_tag(tag) + _serialize_length(len(value)) +
+                        value)
         return res
