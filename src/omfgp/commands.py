@@ -8,7 +8,7 @@ SELECT = b'\x00\xA4'
 INITIALIZE_UPDATE = b'\x80\x50'
 # Authenticate the host and determine the security level
 EXTERNAL_AUTHENTICATE = b'\x84\x82'
-# Retrieve satus of an on-card entity
+# Retrieve status of an on-card entity
 GET_STATUS = b'\x80\xF2'
 
 # Offset of the CLA byte within APDU

@@ -73,7 +73,7 @@ def test_scp03_clear(mocker: MockerFixture):
     assert scp.unwrap_response(*response) == response
 
 
-def test_scp03_C_MAC_Key_DEK(mocker: MockerFixture):
+def test_scp03_C_MAC(mocker: MockerFixture):
     # Establish SCP03 connection
     # Security level: C-MAC
     fake_card = FakeCard({

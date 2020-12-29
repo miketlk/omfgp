@@ -1,3 +1,4 @@
+ERR_NOT_FOUND = b'\x6A\x88'
 ERRORCODES = {
     b'\x62\x83': "The card is locked",  # in responce to select ISD command
     b'\x63\x00': "Authentication of host cryptogram failed",
@@ -14,7 +15,7 @@ ERRORCODES = {
     b'\x6A\x82': "Application not found",
     b'\x6A\x84': "Not enough memory space",
     b'\x6A\x86': "Incorrect P1 P2",
-    b'\x6A\x88': "Referenced data not found",
+    ERR_NOT_FOUND: "Referenced data not found",
     b'\x6D\x00': "Invalid instruction",
     b'\x6E\x00': "Invalid class",
     b'\x94\x84': "Algorithm not supported",
@@ -26,9 +27,10 @@ SUCCESSCODES = {
     SUCCESS: "Success"
 }
 
+MORE_DATA = b'\x63\x10'
 WARNINGCODES = {
     b'\x62\x00': "Logical Channel already closed",
-    b'\x63\x10': "More data available"
+    MORE_DATA: "More data available"
 }
 
 

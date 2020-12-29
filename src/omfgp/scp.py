@@ -21,10 +21,15 @@ DEFAULT_KEYS = StaticKeys(
 
 class SecurityLevel(int):
     """ Bit values used by EXTERNAL AUTHENTICATE command"""
+    # No encryption nor MAC
     CLEAR = 0
+    # Command MAC
     C_MAC = 0b00000001
+    # Command decryption (by card)
     C_DECRYPTION = 0b00000010
+    # Response MAC
     R_MAC = 0b00010000
+    # Response encryption (by card)
     R_ENCRYPTION = 0b00100000
 
     def __new__(cls, value, *args, **kwargs):

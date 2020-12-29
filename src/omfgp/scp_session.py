@@ -12,8 +12,8 @@ from . import scp02, scp03
 
 
 def open_secure_channel(card_obj, keys: StaticKeys = DEFAULT_KEYS,
-                        progress_cb=None, **scp_options):
-    """Opens secure channel returning secure channel object"""
+                        progress_cb=None, **kwargs):
+    """Open secure channel returning secure channel object."""
 
     # Combine options with the default values, validate and correct if needed
     options = {'key_version': 0,
@@ -22,7 +22,7 @@ def open_secure_channel(card_obj, keys: StaticKeys = DEFAULT_KEYS,
                'block_size': commands.LC_MAX,
                'buggy_icv_counter': False,
                'min_scp_version': 0}
-    options.update(scp_options)
+    options.update(kwargs)
     key_version = options['key_version']
     options['security_level'] = SecurityLevel(options['security_level'])
     host_challenge = options['host_challenge']

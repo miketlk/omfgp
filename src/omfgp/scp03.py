@@ -50,7 +50,7 @@ class DDC:
 
 
 def _derive_data(key, ddc_const: int, L: int, context):
-    """Derives data following SCP 03 data derivation scheme"""
+    """Derive data following SCP 03 data derivation scheme."""
     assert L >= 8 and (L & 0b111) == 0
     kdf = crypto.KBKDF(crypto.CMAC(crypto.AES, key), ctrlen_bytes=1,
                        ctr_loc=crypto.KBKDF.LOC_MIDDLE_FIXED,
@@ -61,7 +61,7 @@ def _derive_data(key, ddc_const: int, L: int, context):
 
 def _compute_block_size(block_size_in: int,
                         security_level: SecurityLevel) -> int:
-    """Computes maximum block size for the specified security level"""
+    """Compute maximum block size for the specified security level."""
     if block_size_in <= 0 or block_size_in > LC_MAX:
         raise ValueError("Invalid block size")
 
@@ -148,12 +148,12 @@ class SCP03:
         return self._block_size
 
     def _diversify_keys(self, keys: StaticKeys, key_dvs_data):
-        """Returns a set of diversified keys"""
+        """Diversify keys."""
         # Currently does nothing
         return keys
 
     def _initialize_keys(self, keys: StaticKeys, host_challenge, card_challenge):
-        """Derives session keys and initializes security parameters"""
+        """Derive session keys and initialize security parameters."""
         if len(keys.key_enc) != len(keys.key_mac) != len(keys.key_dek):
             raise ValueError("Keys must have the same length")
         n_bits = 8 * len(keys.key_enc)
@@ -179,7 +179,7 @@ class SCP03:
         self._enc_ctr = 0
 
     def wrap_apdu(self, apdu: bytes, sl_override=None) -> bytes:
-        """Applies secure channel wrapping to APDU"""
+        """Apply secure channel wrapping to APDU."""
         sl = sl_override if sl_override is not None else self._security_level
         if not isinstance(apdu, bytearray):
             apdu = bytearray(apdu)
@@ -220,7 +220,7 @@ class SCP03:
         return bytes(apdu)
 
     def unwrap_response(self, data: bytes, sw: bytes) -> bytes:
-        """Removes secure channel wrapping from APDU response"""
+        """Remove secure channel wrapping from APDU response."""
         if not isinstance(data, bytearray):
             data = bytearray(data)
 
@@ -248,21 +248,21 @@ class SCP03:
         return bytes(data), sw
 
     def encrypt_data(self, data):
-        """Encrypts sensitive data with Key-DEK"""
+        """Encrypt sensitive data with Key-DEK."""
         if len(data) == 0 or (len(data) % crypto.AES.BLOCK_N_BYTES) != 0:
             raise ValueError("Data block must be multiple of cipher block")
         icv = crypto.AES.BLOCK_N_BYTES * b'\0'
         return crypto.AES(self._key_dek, crypto.MODE_CBC, icv).encrypt(data)
 
     def decrypt_data(self, data):
-        """Decrypts sensitive data with Key-DEK"""
+        """Decrypt sensitive data with Key-DEK."""
         if len(data) == 0 or (len(data) % crypto.AES.BLOCK_N_BYTES) != 0:
             raise ValueError("Data block must be multiple of cipher block")
         icv = crypto.AES.BLOCK_N_BYTES * b'\0'
         return crypto.AES(self._key_dek, crypto.MODE_CBC, icv).decrypt(data)
 
     def close(self):
-        """Clears all session data"""
+        """Clear all session data."""
         del self._security_level
         del self._key_dek
         del self._s_enc
