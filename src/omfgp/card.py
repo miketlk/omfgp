@@ -1,30 +1,12 @@
 from binascii import hexlify
 from collections import namedtuple
-from .util import get_connection
+from .util import *
+from .gp_types import *
 from . import commands
 from . import status
 from . import scp
 from . import scp_session
 from . import tlv
-
-# Parsed APDU
-APDU = namedtuple('APDU', ['cla', 'ins', 'p1', 'p2', 'lc', 'data'])
-
-
-class StatusKind:
-    """Kind of status information requested."""
-    # Issuer security domain
-    ISD = 0x80
-    # Applications or supplementary security domains
-    APP_SD = 0x40
-    # Executable load files
-    LOAD_FILES = 0x20
-    # Executable load files and their executable modules
-    LOAD_FILES_MOD = 0x10
-
-    # Allowed values
-    _values = (ISD, APP_SD, LOAD_FILES, LOAD_FILES_MOD)
-
 
 class ISOException(Exception):
     def __init__(self, code):
