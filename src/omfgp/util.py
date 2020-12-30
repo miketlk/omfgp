@@ -80,3 +80,9 @@ class ProgressCallback:
         """Forwards a call to progress callback"""
         if callable(self._callback):
             self._callback(percent)
+
+def inlist(x) -> list:
+    """Wrap argument in a list if it's not already a list itself"""
+    if isinstance(x, list):
+        return x
+    return [x]
