@@ -86,7 +86,7 @@ class TLV(dict):
     def deserialize(cls, b):
         """Deserializes bytes to BER-TLV object"""
         s = BytesIO(b)
-        o = {}
+        o = cls()
         while True:
             tag, flag_constructed = _read_tag(s)
             if tag is None:
@@ -106,7 +106,7 @@ class TLV(dict):
                     o[tag] = [o[tag], v]
             else:
                 o[tag] = v
-        return cls(o)
+        return o
 
     def serialize(self):
         """Serializes BER-TLV object to bytes"""
