@@ -8,6 +8,10 @@ from . import scp
 from . import scp_session
 from . import tlv
 
+# Parsed APDU
+APDU = namedtuple('APDU', ['cla', 'ins', 'p1', 'p2', 'lc', 'data'])
+
+
 class ISOException(Exception):
     def __init__(self, code):
         self.code = code
