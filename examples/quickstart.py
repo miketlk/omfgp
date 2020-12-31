@@ -18,11 +18,10 @@ if __name__ == '__main__':
     print("ISD AID:", ISD.hex())
 
     card.open_secure_channel()
-#    d = card.request(gp.commands.GET_STATUS + b'\x80\x02' +
-#      gp.card.encode("4F00"))
-#    tlv = gp.tlv.TLV.deserialize(d)
-#    print(tlv)
-    print("ISD status:", card.get_status(gp.StatusKind.ISD))
-    print("Apps and SDs:", card.get_status(gp.StatusKind.APP_SD))
-    print("Load files & modules:", card.get_status(gp.StatusKind.LOAD_FILES_MOD))
-    print("Load files only:", card.get_status(gp.StatusKind.LOAD_FILES))
+    print("\n=== ISD status ===\n", card.get_status(gp.StatusKind.ISD), "\n")
+    print("\n=== Apps and SDs ===\n", card.get_status(gp.StatusKind.APP_SSD),
+          "\n")
+    print("\n=== Load files & modules ===\n",
+          card.get_status(gp.StatusKind.LOAD_FILES_MOD), "\n")
+    print("\n=== Load files only ===\n",
+          card.get_status(gp.StatusKind.LOAD_FILES), "\n")

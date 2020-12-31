@@ -10,14 +10,16 @@ class StatusKind:
     # Issuer security domain
     ISD = 0x80
     # Applications or supplementary security domains
-    APP_SD = 0x40
+    APP_SSD = 0x40
     # Executable load files
     LOAD_FILES = 0x20
     # Executable load files and their executable modules
     LOAD_FILES_MOD = 0x10
 
     # Allowed values
-    _values = (ISD, APP_SD, LOAD_FILES, LOAD_FILES_MOD)
+    _values = (ISD, APP_SSD, LOAD_FILES, LOAD_FILES_MOD)
+    # Kinds related to executable load files
+    _file_kinds = (LOAD_FILES, LOAD_FILES_MOD)
 
 
 class Privileges(list):

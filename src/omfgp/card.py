@@ -10,6 +10,12 @@ from . import tlv
 
 # Parsed APDU
 APDU = namedtuple('APDU', ['cla', 'ins', 'p1', 'p2', 'lc', 'data'])
+# Security domain or application status
+SDAppStatus = namedtuple('SDAppStatus', ['aid', 'state', 'privileges', 'isp_list',
+                                         'file_aid', 'sd_aid'])
+# Executable load file status
+FileStatus = namedtuple('FileStatus', ['aid', 'state', 'version',
+                                       'module_aid_list', 'sd_aid'])
 
 
 class ISOException(Exception):
@@ -123,7 +129,7 @@ class GPCard:
         data = self.request(commands.SELECT + p1p2 + encode(aid))
         return tlv.TLV.deserialize(data)
 
-    def get_status(self, kind: int = StatusKind.APP_SD,
+    def get_status(self, kind: int = StatusKind.APP_SSD,
                    aid: bytes = b'') -> list:
         """Request status information from the card.
 
@@ -135,7 +141,7 @@ class GPCard:
         if kind not in StatusKind._values:
             raise ValueError("Invalid kind")
 
-        res = []
+        responses = []
         p2 = 0b10
         cdata = tlv.TLV({0x4f: aid}).serialize()
         while True:
@@ -143,13 +149,39 @@ class GPCard:
                 commands.GET_STATUS + bytes([kind, p2]) + encode(cdata),
                 ignore_errors=[status.ERR_NOT_FOUND])
 
-            res.append(tlv.TLV.deserialize(rdata))
+            gp_data = tlv.TLV.deserialize(rdata)
+            responses.append(gp_data.get(0xE3, {}))
             if sw in (status.SUCCESS, status.ERR_NOT_FOUND):
                 break
             elif sw != status.MORE_DATA:
                 raise ISOException(sw)
             p2 = 0b11
-        return res
+
+        status_recs = []
+        for resp in responses:
+            for rec in inlist(resp):
+                aid = AID(rec.get(0x4F, b''))
+                lc_value = ord(rec.get(0x9F70, b'\0'))
+                sd_aid = AID(rec.get(0xCC, b''))
+                if kind in StatusKind._file_kinds:
+                    version = rec.get(0xCC, b'')
+                    modules = inlist(rec.get(0x84, []))
+                    modules = [AID(m) for m in modules]
+                    state = FileLifeCycle(lc_value)
+                    stat = FileStatus(aid, state, version, modules, sd_aid)
+                else:
+                    privileges = Privileges.deserialize(rec.get(0xC5, b''))
+                    isp_list = inlist(rec.get(0xCF, []))
+                    file_aid = AID(rec.get(0xC4, b''))
+                    if 'SECURITY_DOMAIN' in privileges:
+                        state = SDLifeCycle(lc_value)
+                    else:
+                        state = AppLifeCycle(lc_value)
+                    stat = SDAppStatus(aid, state, privileges, isp_list,
+                                       file_aid, sd_aid)
+                status_recs.append(stat)
+
+        return status_recs
 
     def open_secure_channel(self, keys: scp.StaticKeys = scp.DEFAULT_KEYS,
                             progress_cb=None, **kwargs):

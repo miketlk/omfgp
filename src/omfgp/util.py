@@ -30,6 +30,15 @@ def aid_to_str(aid: bytes):
     return s[1:] if s.startswith("0") else s
 
 
+class AID(bytes):
+    """Wrapper around byte string to store AID."""
+    def __str__(self):
+        return aid_to_str(self)
+
+    def __repr__(self):
+        return "%s(%s)" % (type(self).__name__, str(self))
+
+
 def int_to_bytes_big_endian(x: int, n_bytes: int) -> bytearray:
     """Converts integer to bytes in big endian mode"""
     if x >= 256 ** n_bytes:
@@ -42,12 +51,15 @@ def int_to_bytes_big_endian(x: int, n_bytes: int) -> bytearray:
     return res
 
 # Added because int.from_bytes() is incomplete in MicroPython
+
+
 def bytes_to_int_big_endian(data: bytes) -> int:
     """Converts bytes to integer in big endian mode"""
     res = 0
     for x in data:
         res = (res << 8) | x
     return res
+
 
 def xor_bytes(a: bytes, b: bytes) -> bytearray:
     """Returns result of a XOR operation over two byte strings or arrays"""
@@ -70,8 +82,10 @@ def lshift1_bytes(data: bytes) -> bytearray:
         res[idx] = (data[idx] << 1) & 0xff
     return res
 
+
 class ProgressCallback:
     """Safe wrapper for progress callback"""
+
     def __init__(self, progress_cb=None):
         """Creates new wrapper"""
         self._callback = progress_cb
@@ -80,6 +94,7 @@ class ProgressCallback:
         """Forwards a call to progress callback"""
         if callable(self._callback):
             self._callback(percent)
+
 
 def inlist(x) -> list:
     """Wrap argument in a list if it's not already a list itself"""
