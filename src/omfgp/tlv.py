@@ -1,6 +1,7 @@
 """BER-TLV encoder and decoder"""
 
 from io import BytesIO
+from collections import OrderedDict
 from .util import bytes_to_int_big_endian
 
 # TODO: move to other place
@@ -67,7 +68,7 @@ def _serialize_tag(tag: int):
     raise RuntimeError("Unsupported TLV tag")
 
 
-def _serialize_length(length: int):
+def serialize_length(length: int):
     """Serializes length to bytes"""
     if length <= 0x7f:
         return bytes([length])
@@ -79,8 +80,11 @@ def _serialize_length(length: int):
         return bytes([0x83, length >> 16, (length >> 8) & 0xff, length & 0xff])
     raise RuntimeError("Unsupported TLV length")
 
+def lv_encode(data: bytes) -> bytes:
+    """Encodes data as length-value"""
+    return serialize_length(len(data)) + data
 
-class TLV(dict):
+class TLV(OrderedDict):
     """BER-TLV object"""
     @classmethod
     def deserialize(cls, b):
@@ -121,8 +125,8 @@ class TLV(dict):
             if isinstance(value, list):
                 for subv in value:
                     res += (_serialize_tag(tag) +
-                            _serialize_length(len(subv)) + subv)
+                            serialize_length(len(subv)) + subv)
             else:
-                res += (_serialize_tag(tag) + _serialize_length(len(value)) +
+                res += (_serialize_tag(tag) + serialize_length(len(value)) +
                         value)
         return res

@@ -88,6 +88,7 @@ class SCP03:
                  block_size, buggy_icv_counter, **options):
         self._debug = card_obj.debug
         self._security_level = security_level
+        self._intf_block_size = block_size
         self._block_size = _compute_block_size(block_size, security_level)
         self._buggy_icv_counter = buggy_icv_counter
 
@@ -216,7 +217,7 @@ class SCP03:
             else:
                 apdu[OFF_CLA] = orig_cla | ClaBits.First.GP_SECURE
 
-        assert apdu[OFF_LC] <= self.block_size
+        assert apdu[OFF_LC] <= self._intf_block_size
         return bytes(apdu)
 
     def unwrap_response(self, data: bytes, sw: bytes) -> bytes:

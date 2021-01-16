@@ -151,8 +151,11 @@ class Applet:
         """Returns piece of loadable data starting from a given offset"""
         if size < 0:
             size = len(self) - offset
-        if offset < 0 or offset + size > len(self):
-            raise ValueError("Trying to access outside of data")
+        if offset < 0 or size < 0:
+            raise ValueError("Trying to access outside of stored data")
+        if offset + size > len(self):
+          size = len(self) - offset
+          size = size if size >= 0 else 0
         data = bytearray()
         rm_size = size
         load_off = 0
@@ -169,7 +172,7 @@ class Applet:
                     dst_off += chunk_len
                     rm_size -= chunk_len
                 load_off += item.size
-        return data
+        return bytes(data)
 
     def get_metadata(self, item_name: str = ''):
         """Returns metadata specified by item name or a full set if the name is

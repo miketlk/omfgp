@@ -32,6 +32,7 @@ def aid_to_str(aid: bytes):
 
 class AID(bytes):
     """Wrapper around byte string to store AID."""
+
     def __str__(self):
         return aid_to_str(self)
 
@@ -87,13 +88,21 @@ class ProgressCallback:
     """Safe wrapper for progress callback"""
 
     def __init__(self, progress_cb=None):
-        """Creates new wrapper"""
+        """Create new wrapper"""
         self._callback = progress_cb
+        self._value = 0
 
     def __call__(self, percent):
-        """Forwards a call to progress callback"""
+        """Forward a call to progress callback"""
+        self._value = percent
+        self._value = 0 if self._value < 0 else self._value
+        self._value = 100 if self._value > 100 else self._value
         if callable(self._callback):
-            self._callback(percent)
+            self._callback(self._value)
+
+    def advance(self, percent_inc):
+        """Increment progress value and forward a call to progress callback"""
+        self(self._value + percent_inc)
 
 
 def inlist(x) -> list:

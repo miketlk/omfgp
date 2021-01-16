@@ -56,7 +56,7 @@ class Privileges(list):
     @classmethod
     def deserialize(cls, priv_bytes: bytes) -> object:
         """Deserialize privilege bytes to Privileges object."""
-        if len(priv_bytes) not in (1, 3):
+        if len(priv_bytes) not in (0, 1, 3):
             raise ValueError("Invalid privilege bytes")
         priv_bytes += (3 - len(priv_bytes)) * b'\0'
         value = bytes_to_int_big_endian(priv_bytes)
@@ -178,3 +178,53 @@ class CardLifeCycle(_LifeCycleBase):
         'CARD_LOCKED': (0b01111111, 0b10000000),
         'TERMINATED': (0b11111111, 0b00000000)
     }
+
+
+class GetStatusP2:
+    """Bits of P2 parameter of the GET STATUS command"""
+    # Tagged response format
+    TAGGED = 0b00000010
+    # Get next occurrence
+    NEXT = 0b00000001
+
+
+class InstallRole:
+    """Roles of the INSTALL command (P1 parameter)"""
+    # More INSTALL commands
+    MORE = 0b10000000
+    # For registry update
+    REGISTRY_UPDATE = 0b01000000
+    # For personalization
+    PERSONALIZATION = 0b00100000
+    # For extradition
+    EXTRADITION = 0b00010000
+    # For make selectable
+    MAKE_SELECTABLE = 0b00001000
+    # For install
+    INSTALL = 0b00000100
+    # For load
+    LOAD = 0b00000010
+    # A combination of the [for install] and [for make selectable]
+    INSTALL_MAKE_SELECTABLE = INSTALL | MAKE_SELECTABLE
+    # A combination of the [for load], [for install] and [for make selectable]
+    LOAD_INSTALL_MAKE_SELECTABLE = (LOAD | INSTALL | MAKE_SELECTABLE)
+    # Allowed values
+    _values = (REGISTRY_UPDATE, PERSONALIZATION, EXTRADITION,
+               MAKE_SELECTABLE, INSTALL, LOAD, INSTALL_MAKE_SELECTABLE,
+               LOAD_INSTALL_MAKE_SELECTABLE)
+
+
+class InstallProcess:
+    """Values specifying process to which INSTALL command belongs"""
+    # No information is provided
+    NONE = 0x00
+    # Beginning of the combined Load, Install and Make Selectable process
+    PROCESS_BEGIN = 0x01
+    # End of the combined Load, Install and Make Selectable process
+    PROCESS_END = 0x03
+
+
+class LoadP1:
+    """Bits of P1 parameter of the LOAD command"""
+    # Last block in the sequence
+    LAST = 0b10000000

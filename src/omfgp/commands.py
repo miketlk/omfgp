@@ -10,6 +10,10 @@ INITIALIZE_UPDATE = b'\x80\x50'
 EXTERNAL_AUTHENTICATE = b'\x84\x82'
 # Retrieve status of an on-card entity
 GET_STATUS = b'\x80\xF2'
+# Initiate or perform the various steps required for card content management
+INSTALL = b'\x80\xE6'
+# Transfer part of a load file to the card
+LOAD = b'\x80\xE8'
 
 # Offset of the CLA byte within APDU
 OFF_CLA = 0

@@ -4,7 +4,7 @@ from omfgp.tlv import *
 from omfgp.tlv import _read_tag
 from omfgp.tlv import _read_length
 from omfgp.tlv import _serialize_tag
-from omfgp.tlv import _serialize_length
+from omfgp.tlv import serialize_length
 
 # Reference SECLECT response
 select_response = bytes.fromhex("6f108408a000000151000000a5049f6501ff")
@@ -78,14 +78,29 @@ def test_serialize_tag():
 
 
 def test_serialize_length():
-    assert _serialize_length(0) == b'\x00'
-    assert _serialize_length(1) == b'\x01'
-    assert _serialize_length(0x7f) == b'\x7f'
-    assert _serialize_length(0xff) == b'\x81\xFF'
-    assert _serialize_length(0x1234) == b'\x82\x12\x34'
-    assert _serialize_length(0xffff) == b'\x82\xff\xff'
-    assert _serialize_length(0x123456) == b'\x83\x12\x34\x56'
-    assert _serialize_length(0xffffff) == b'\x83\xff\xff\xff'
+    assert serialize_length(0) == b'\x00'
+    assert serialize_length(1) == b'\x01'
+    assert serialize_length(0x7f) == b'\x7f'
+    assert serialize_length(0xff) == b'\x81\xFF'
+    assert serialize_length(0x1234) == b'\x82\x12\x34'
+    assert serialize_length(0xffff) == b'\x82\xff\xff'
+    assert serialize_length(0x123456) == b'\x83\x12\x34\x56'
+    assert serialize_length(0xffffff) == b'\x83\xff\xff\xff'
+
+
+def test_lv_encode():
+    assert lv_encode(b'') == b'\x00'
+    assert lv_encode(b'\x55') == b'\x01\x55'
+    assert lv_encode(b'\x12\x34\x56') == b'\x03\x12\x34\x56'
+    assert lv_encode(0x7f * b'\xab') == b'\x7f' + 0x7f * b'\xab'
+    assert lv_encode(0x80 * b'\xab') == b'\x81\x80' + 0x80 * b'\xab'
+    assert lv_encode(0xff * b'\xab') == b'\x81\xff' + 0xff * b'\xab'
+    assert lv_encode(0x100 * b'\xab') == b'\x82\x01\x00' + 0x100 * b'\xab'
+    assert lv_encode(0xffff * b'\xab') == b'\x82\xff\xff' + 0xffff * b'\xab'
+    assert lv_encode(0x10000 * b'\xab') == (b'\x83\x01\x00\x00' +
+                                            0x10000 * b'\xab')
+    assert lv_encode(0xffffff * b'\xab') == (b'\x83\xff\xff\xff' +
+                                             0xffffff * b'\xab')
 
 
 def test_serialize():

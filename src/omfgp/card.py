@@ -1,5 +1,6 @@
 from binascii import hexlify
 from collections import namedtuple
+import hashlib
 from .util import *
 from .gp_types import *
 from . import commands
@@ -7,6 +8,7 @@ from . import status
 from . import scp
 from . import scp_session
 from . import tlv
+from . import applet
 
 # Parsed APDU
 APDU = namedtuple('APDU', ['cla', 'ins', 'p1', 'p2', 'lc', 'data'])
@@ -76,11 +78,12 @@ def code_apdu(apdu_obj: APDU) -> bytes:
 
 
 class GPCard:
-    def __init__(self, connection=None, debug=False):
+    def __init__(self, connection=None, debug=False, progress_cb=None):
         if connection is None:
             connection = get_connection()
         self.connection = connection
         self.debug = debug
+        self.progress_cb = progress_cb
         self._scp_inst = None
 
     def transmit(self: bytes, apdu: bytes) -> tuple:
@@ -142,20 +145,21 @@ class GPCard:
             raise ValueError("Invalid kind")
 
         responses = []
-        p2 = 0b10
+        p2 = GetStatusP2.TAGGED
         cdata = tlv.TLV({0x4f: aid}).serialize()
         while True:
             rdata, sw = self.request_full(
                 commands.GET_STATUS + bytes([kind, p2]) + encode(cdata),
                 ignore_errors=[status.ERR_NOT_FOUND])
-
-            gp_data = tlv.TLV.deserialize(rdata)
-            responses.append(gp_data.get(0xE3, {}))
-            if sw in (status.SUCCESS, status.ERR_NOT_FOUND):
+            if sw == status.SUCCESS:
+                gp_data = tlv.TLV.deserialize(rdata)
+                responses.append(gp_data.get(0xE3, {}))
+                break
+            elif sw == status.ERR_NOT_FOUND:
                 break
             elif sw != status.MORE_DATA:
                 raise ISOException(sw)
-            p2 = 0b11
+            p2 |= GetStatusP2.NEXT
 
         status_recs = []
         for resp in responses:
@@ -183,8 +187,144 @@ class GPCard:
 
         return status_recs
 
+    def _install(self, role: int, file_aid: bytes = b'',
+                 sd_aid: bytes = b'', module_aid: bytes = b'',
+                 app_aid: bytes = b'', data_hash: bytes = b'',
+                 privileges: list = [], params: bytes = b'',
+                 token: bytes = b'', process: int = InstallProcess.NONE
+                 ) -> tuple:
+        """Issue INSTALL command"""
+
+        # Separate role identifier from the "more" bit
+        role_id, more_bit = role & ~InstallRole.MORE, role & InstallRole.MORE
+
+        # Pack data according to command role
+        if (role_id == InstallRole.LOAD or
+                (role_id == InstallRole.LOAD_INSTALL_MAKE_SELECTABLE and
+                 more_bit)):
+            data = (tlv.lv_encode(file_aid) + tlv.lv_encode(sd_aid) +
+                    tlv.lv_encode(data_hash) + tlv.lv_encode(params) +
+                    tlv.lv_encode(token))
+        elif (role_id in (InstallRole.INSTALL, InstallRole.MAKE_SELECTABLE,
+                          InstallRole.INSTALL_MAKE_SELECTABLE) or
+              (role_id == InstallRole.LOAD_INSTALL_MAKE_SELECTABLE and
+               not more_bit)):
+            if not params:
+                params = b'\xC9\x00'  # Application Specific Parameters
+            data = (tlv.lv_encode(file_aid) + tlv.lv_encode(module_aid) +
+                    tlv.lv_encode(app_aid) +
+                    tlv.lv_encode(Privileges(privileges).serialize()) +
+                    tlv.lv_encode(params) + tlv.lv_encode(token))
+        elif role_id in (InstallRole.EXTRADITION, InstallRole.REGISTRY_UPDATE,
+                         InstallRole.PERSONALIZATION):
+            if app_aid and file_aid:
+                raise ValueError("Only one application/file AID required")
+            data = (tlv.lv_encode(sd_aid) + b'\0' +
+                    tlv.lv_encode(app_aid if app_aid else file_aid) + b'\0' +
+                    tlv.lv_encode(params) + tlv.lv_encode(token))
+        else:
+            raise ValueError("Invalid role")
+
+        p1p2 = bytes([role, process])
+        return self.request_full(commands.INSTALL + p1p2 + encode(data))
+
+    def _load(self, data: bytes, block_num: int, last: bool = False):
+        """Issue LOAD command"""
+        p1p2 = bytes([LoadP1.LAST if last else 0, block_num])
+        return self.request_full(commands.LOAD + p1p2 + encode(data))
+
+    def _make_dap_block(self, applet: applet.Applet, dap_sd_aid: bytes = b''
+                        ) -> tuple:
+        """Make DAP block and hash of the applet."""
+        md = applet.get_metadata()
+        sig, hasher = None, None
+        if 'dap.p256.sha256' in md:
+            sig, hasher = md['dap.p256.sha256'], hashlib.sha256()
+        elif 'dap.p256.sha1' in md:
+            sig, hasher = md['dap.p256.sha1'], hashlib.sha1()
+        elif 'dap.rsa.sha256' in md:
+            sig, hasher = md['dap.rsa.sha256'], hashlib.sha256()
+        elif 'dap.rsa.sha1' in md:
+            sig, hasher = md['dap.rsa.sha1'], hashlib.sha1()
+
+        if sig and hasher and dap_sd_aid:
+            # Using [(k,v), (k,v) ...] initializer format to preserve key order
+            block = tlv.TLV([
+                (0xE2, tlv.TLV([
+                    (0x4F, dap_sd_aid), (0xC3, sig)
+                ]))
+            ]).serialize()
+            return block, applet.hash(hasher)
+
+        return b'', b''
+
+    def load_applet(self, applet: applet.Applet, target_sd_aid: bytes = b'',
+                    dap_sd_aid: bytes = b'', privileges=[],
+                    install_params=b''):
+        """Load and install applet or bundle
+
+        :param applet: applet or bundle to load
+        :param target_sd_aid: AID of the target Security Domain
+        :param dap_sd_aid: AID of a Security Domain for DAP verification
+        :param privileges: a list of privileges, may be a dict with a list of
+            privileges for each appled AID
+        :param install_params: parameters passed to applet(s) during
+            installation, may be a dict with a set of parameters for each
+            applet AID
+        """
+        if self._scp_inst is None:
+            raise RuntimeError("Secure channel is required")
+
+        dap_block, hash = self._make_dap_block(applet, dap_sd_aid)
+        prefix = dap_block + b'\xC4' + tlv.serialize_length(len(applet))
+        data_n_bytes = len(prefix) + len(applet)
+        data_blocks = -(data_n_bytes // -self._scp_inst.block_size)
+        n_apdu = 1 + data_blocks + len(applet.applet_aid_list)
+
+        progress = ProgressCallback(self.progress_cb)
+        progress_inc = 100 / n_apdu
+        progress(0)
+
+        self._install(InstallRole.LOAD, file_aid=applet.package_aid,
+                      sd_aid=target_sd_aid, data_hash=hash)
+        progress.advance(progress_inc)
+
+        # Load applet data combined with TLV-encoded prefix
+        offset = 0
+        for block_n in range(data_blocks):
+            rm_size = self._scp_inst.block_size
+            data = bytearray(prefix[offset: offset + rm_size])
+            rm_size -= len(data)
+            offset += len(data)
+            if offset >= len(prefix):
+                app_data = applet.get_data(offset - len(prefix), rm_size)
+                data += app_data
+                offset += len(app_data)
+            is_last = True if (block_n == data_blocks - 1) else False
+            self._load(data, block_n, is_last)
+            progress.advance(progress_inc)
+
+        # Install and make selectable all applets from the file
+        for aid in applet.applet_aid_list:
+            if isinstance(privileges, dict):
+                app_privileges = privileges.get(aid, [])
+            else:
+                app_privileges = privileges
+            if isinstance(install_params, dict):
+                app_params = install_params.get(aid, b'')
+            else:
+                app_params = install_params
+            app_params = tlv.TLV({0xC9: app_params}).serialize()
+            self._install(InstallRole.INSTALL_MAKE_SELECTABLE,
+                          file_aid=applet.package_aid, module_aid=aid,
+                          app_aid=aid, privileges=app_privileges,
+                          params=app_params)
+            progress.advance(progress_inc)
+
+        progress(100)
+
     def open_secure_channel(self, keys: scp.StaticKeys = scp.DEFAULT_KEYS,
-                            progress_cb=None, **kwargs):
+                            **kwargs):
         """Open secure channel using one of SCP protocols chosen by the card.
 
         :param keys: static keys used to derive session keys and parameters
@@ -204,7 +344,7 @@ class GPCard:
         """
         self.close_secure_channel()
         self._scp_inst = scp_session.open_secure_channel(
-            self, keys=keys, progress_cb=progress_cb, **kwargs)
+            self, keys=keys, progress_cb=self.progress_cb, **kwargs)
 
     def close_secure_channel(self):
         if self._scp_inst is not None:
