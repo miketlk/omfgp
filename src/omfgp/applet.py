@@ -2,7 +2,7 @@
 
 from io import BytesIO
 from collections import namedtuple
-from .util import aid_to_str
+from .util import AID
 
 # Extended component tags used to store selected metadata - NON-STANDARD!
 _EXTENDED_TAGS = {
@@ -58,7 +58,7 @@ class Header:
             obj.package_minor_ver = (stream.read(1))[0]
             obj.package_major_ver = (stream.read(1))[0]
             aid_len = (stream.read(1))[0]
-            obj.package_aid = stream.read(aid_len)
+            obj.package_aid = AID(stream.read(aid_len))
             if not len(obj.package_aid) or len(obj.package_aid) != aid_len:
                 raise RuntimeError("Wrong applet format")
             name_len_byte = stream.read(1)
@@ -76,7 +76,7 @@ class Header:
     def __str__(self):
         s = "CAP v%d.%d, Package: '%s' %s v%d.%d" % (
             self.cap_major_ver, self.cap_minor_ver,
-            self.package_name, aid_to_str(self.package_aid),
+            self.package_name, str(self.package_aid),
             self.package_major_ver, self.package_minor_ver)
         return s
 
@@ -139,7 +139,7 @@ class Applet:
                 if len(aid) != aid_len:
                     RuntimeError("Wrong applet format")
                 _ = stream.read(2)  # install_method_offset
-                aid_list.append(aid)
+                aid_list.append(AID(aid))
         except:
             RuntimeError("Wrong applet format")
         return aid_list
@@ -217,7 +217,7 @@ class Applet:
         return self._header
 
     def __str__(self):
-        aid_strings = [aid_to_str(aid) for aid in self._applet_aid_list]
+        aid_strings = [str(aid) for aid in self._applet_aid_list]
         s = "%s, Applets: [%s], Code: %dbytes" % (
             str(self._header), ", ".join(aid_strings), len(self))
         return s
