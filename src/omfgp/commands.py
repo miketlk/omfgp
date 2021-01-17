@@ -14,6 +14,8 @@ GET_STATUS = b'\x80\xF2'
 INSTALL = b'\x80\xE6'
 # Transfer part of a load file to the card
 LOAD = b'\x80\xE8'
+# Delete a uniquely identifiable object and its related applications or a key
+DELETE = b'\x80\xE4'
 
 # Offset of the CLA byte within APDU
 OFF_CLA = 0
@@ -29,7 +31,7 @@ OFF_LC = 4
 OFF_DATA = 5
 
 # Maximum allowed value of LC field
-LC_MAX = 250
+LC_MAX = 255
 
 class ClaBits:
     """Bits of the class byte"""

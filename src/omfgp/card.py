@@ -19,6 +19,9 @@ SDAppStatus = namedtuple('SDAppStatus', ['aid', 'state', 'privileges', 'isp_list
 FileStatus = namedtuple('FileStatus', ['aid', 'state', 'version',
                                        'module_aid_list', 'sd_aid'])
 
+# Response to SELECT command
+SelectResponse = namedtuple('SelectResponse', ['aid', 'sd_data', 'block_size'])
+
 
 class ISOException(Exception):
     def __init__(self, code):
@@ -85,6 +88,7 @@ class GPCard:
         self.debug = debug
         self.progress_cb = progress_cb
         self._scp_inst = None
+        self._block_size = 256
 
     def transmit(self: bytes, apdu: bytes) -> tuple:
         """Raw function from pyscard module with byte string API"""
@@ -125,12 +129,17 @@ class GPCard:
         self.close_secure_channel()
         self.connection.disconnect()
 
-    def select(self, aid: bytes = b'') -> tlv.TLV:
+    def select(self, aid: bytes = b'') -> SelectResponse:
         """Select an applet by AID."""
         # Select by name first or only occurrence of an applet
         p1p2 = b'\x04\x00'
         data = self.request(commands.SELECT + p1p2 + encode(aid))
-        return tlv.TLV.deserialize(data)
+        fci = tlv.TLV.deserialize(data).get(0x6F, tlv.TLV())
+        aid = AID(fci.get(0x84, b''))
+        prop_data = fci.get(0xA5, tlv.TLV())
+        sd_data = prop_data.get(0x73, tlv.TLV())
+        self._block_size = ord(prop_data.get(0x9F65, b'\xff'))
+        return SelectResponse(aid, sd_data, self._block_size)
 
     def get_status(self, kind: int = StatusKind.APP_SSD,
                    aid: bytes = b'') -> list:
@@ -323,6 +332,22 @@ class GPCard:
 
         progress(100)
 
+    def delete_object(self, aid: bytes, delete_related=True):
+        """Delete a uniquely identifiable object and its related object(s)
+
+        :param aid: AID of the object to delete
+        :param delete_related: if true deletes related object(s) as well,
+            defaults to True
+        """
+        if self._scp_inst is None:
+            raise RuntimeError("Secure channel is required")
+        
+        p1 = DeleteP1.LAST
+        p2 = (DeleteP2.OBJECT_AND_RELATED if delete_related else
+              DeleteP2.OBJECT_ONLY)
+        data = tlv.TLV([(0x4F, aid)]).serialize()
+        self.request(commands.DELETE + bytes([p1, p2]) + encode(data))
+
     def open_secure_channel(self, keys: scp.StaticKeys = scp.DEFAULT_KEYS,
                             **kwargs):
         """Open secure channel using one of SCP protocols chosen by the card.
@@ -343,6 +368,8 @@ class GPCard:
         :key min_scp_version: minimum acceptable SCP version, defaults to 0
         """
         self.close_secure_channel()
+        if 'block_size' not in kwargs:
+            kwargs['block_size'] = self._block_size
         self._scp_inst = scp_session.open_secure_channel(
             self, keys=keys, progress_cb=self.progress_cb, **kwargs)
 

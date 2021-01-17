@@ -228,3 +228,17 @@ class LoadP1:
     """Bits of P1 parameter of the LOAD command"""
     # Last block in the sequence
     LAST = 0b10000000
+
+class DeleteP1:
+    """Bits of P1 parameter of the DELETE command"""
+    # Last (or only) command
+    LAST = 0b00000000
+    # More DELETE commands
+    MORE = 0b10000000
+
+class DeleteP2:
+    """Bits of P2 parameter of the DELETE command"""
+    # Delete object
+    OBJECT_ONLY = 0b00000000
+    # Delete object and related object
+    OBJECT_AND_RELATED = 0b10000000
