@@ -36,7 +36,7 @@ def test_compute_block_size():
     assert _compute_block_size(
         24, SecurityLevel.C_MAC | SecurityLevel.C_DECRYPTION) == 15
     with pytest.raises(Exception):
-        _compute_block_size(251, SecurityLevel.CLEAR)
+        _compute_block_size(256, SecurityLevel.CLEAR)
     with pytest.raises(Exception):
         _compute_block_size(8, SecurityLevel.C_MAC)
     with pytest.raises(Exception):
