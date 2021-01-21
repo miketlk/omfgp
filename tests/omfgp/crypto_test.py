@@ -243,6 +243,7 @@ def test_remove_padding():
                       "80000000000000000000000000000000"), 16) == bytes.fromhex(
         "01020304050607080910111213141516")
 
+
 def test_remove_padding_fail():
     with pytest.raises(ValueError):
         # Empty data
@@ -272,3 +273,44 @@ def test_remove_padding_aes():
         bytes.fromhex("01020304050607080910111213141516"
                       "80000000000000000000000000000000")) == bytes.fromhex(
         "01020304050607080910111213141516")
+
+
+def test_des_ecb():
+    key = bytes.fromhex("0123456789abcdef")
+    pt = bytes.fromhex("6bc1bee22e409f96")
+    ct = bytes.fromhex("7277a00dc1c1c36b")
+    assert crypto.DES(key, crypto.MODE_ECB).encrypt(pt) == ct
+    assert crypto.DES(key, crypto.MODE_ECB).decrypt(ct) == pt
+
+
+def test_tdes128_ecb():
+    key = bytes.fromhex("0123456789abcdef23456789abcdef01")
+    pt = bytes.fromhex("6bc1bee22e409f96")
+    ct = bytes.fromhex("06ede3d82884090a")
+    assert crypto.DES(key, crypto.MODE_ECB).encrypt(pt) == ct
+    assert crypto.DES(key, crypto.MODE_ECB).decrypt(ct) == pt
+
+
+def test_tdes192_ecb():
+    key = bytes.fromhex("0123456789abcdef23456789abcdef010123456789abcdef")
+    pt = bytes.fromhex("6bc1bee22e409f96")
+    ct = bytes.fromhex("06ede3d82884090a")
+    assert crypto.DES(key, crypto.MODE_ECB).encrypt(pt) == ct
+    assert crypto.DES(key, crypto.MODE_ECB).decrypt(ct) == pt
+
+
+def test_tdes_cbc():
+    key = bytes.fromhex("08763da862ad16ef5815408f5d3b705415ab1543a42c3efb")
+    iv = bytes.fromhex("0634d69eaff3ae17")
+    pt = bytes.fromhex("109a3d3d745d65b38edbc73d1de8b280"
+                       "7f7820221a6c3937faab19fcbb75d3c8"
+                       "aaf4b63f2714cfc94e95ae43d65f6df4"
+                       "3815efc214ec66a5d1be185d855a6260"
+                       "141ffd179bc980490f8a26d8215dd2ab")
+    ct = bytes.fromhex("e9513e8892a09085bee29c358014afd6"
+                       "0d7578d21e00a31e5d61b965c18778eb"
+                       "e18469170794e5ddf24aa777c8ab0a2c"
+                       "62474109e617978bcc5ce3456ddd9622"
+                       "833420443c2a26b1b6e20a05c189da6c")
+    assert crypto.DES(key, crypto.MODE_CBC, iv).encrypt(pt) == ct
+    assert crypto.DES(key, crypto.MODE_CBC, iv).decrypt(ct) == pt

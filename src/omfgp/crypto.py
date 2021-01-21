@@ -2,6 +2,7 @@
 
 import sys
 from .util import xor_bytes, lshift1_bytes, int_to_bytes_big_endian
+from . import pyDes
 
 try:
     from rng import get_random_bytes
@@ -74,6 +75,42 @@ else:
         def remove_padding(self, data: bytes):
             """Removes 0x80... padding according to NIST 800-38A"""
             return remove_padding(data, self.BLOCK_N_BYTES)
+
+
+class DES:
+    """DES / Triple DES block cipher"""
+
+    # Block size in bytes
+    BLOCK_N_BYTES = 64//8
+
+    def __init__(self, key, mode: int, IV=None):
+        """Creates DES block cipher"""
+        mode = {MODE_ECB: pyDes.ECB, MODE_CBC: pyDes.CBC}.get(mode)
+        if mode is None:
+            raise ValueError("Unsupported mode of operation")
+
+        if len(key) == 8:
+            self._cipher = pyDes.des(key, mode, IV)
+        elif len(key) in (16, 24):
+            self._cipher = pyDes.triple_des(key, mode, IV)
+        else:
+            raise ValueError("Invalid key length")
+
+    def encrypt(self, in_buf):
+        """Encrypts data"""
+        return self._cipher.encrypt(in_buf)
+
+    def decrypt(self, in_buf):
+        """Decrypts data"""
+        return self._cipher.decrypt(in_buf)
+
+    def add_padding(self, data: bytes):
+        """Adds 0x80... padding according to NIST 800-38A"""
+        return add_padding(data, self.BLOCK_N_BYTES)
+
+    def remove_padding(self, data: bytes):
+        """Removes 0x80... padding according to NIST 800-38A"""
+        return remove_padding(data, self.BLOCK_N_BYTES)
 
 
 class PRF:
