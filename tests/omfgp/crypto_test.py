@@ -314,3 +314,22 @@ def test_tdes_cbc():
                        "833420443c2a26b1b6e20a05c189da6c")
     assert crypto.DES(key, crypto.MODE_CBC, iv).encrypt(pt) == ct
     assert crypto.DES(key, crypto.MODE_CBC, iv).decrypt(ct) == pt
+
+
+def test_des_cbc_mac():
+    msg = bytes.fromhex("29EE4CC8D57E49F2000943BE60D338C0")
+    key = bytes.fromhex("4BEAEF3B620B3E8F864BBF365FB42885")
+    assert crypto.DES.cbc_mac(key, msg) == bytes.fromhex("3D401EE6AB3F4851")
+    msg = bytes.fromhex("000943BE60D338C029EE4CC8D57E49F2")
+    assert crypto.DES.cbc_mac(key, msg) == bytes.fromhex("63BCBE99397C7AF7")
+
+
+def test_des_cbc_mac_single():
+    msg = bytes.fromhex("848200001063BCBE99397C7AF7")
+    key = bytes.fromhex("D85E62A5C2C1CE12AB47794BA1E8D5C7")
+    assert (crypto.DES.cbc_mac_single(key, msg) ==
+            bytes.fromhex("12C8F93E06A2C86A"))
+    msg = bytes.fromhex("8482010010BCC41C65CCE079CB")
+    key = bytes.fromhex("7A227D376A9DBE23AB50B7DCB45B2093")
+    assert (crypto.DES.cbc_mac_single(key, msg) ==
+            bytes.fromhex("BDD151B575990774"))

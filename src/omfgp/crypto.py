@@ -112,6 +112,40 @@ class DES:
         """Removes 0x80... padding according to NIST 800-38A"""
         return remove_padding(data, self.BLOCK_N_BYTES)
 
+    @classmethod
+    def cbc_mac(cls, key: bytes, msg: bytes, IV=None) -> bytes:
+        """Calculate DES CBC-MAC"""
+        if not len(key) in (8, 16, 24):
+            raise ValueError("Invalid key length")
+        tdes_ecb = cls(key, MODE_ECB)
+        block_n_bytes = cls.BLOCK_N_BYTES
+        mac = IV if IV else block_n_bytes * b'\0'
+        msg_blocks = tdes_ecb.add_padding(msg)
+        for idx in range(0, len(msg_blocks), block_n_bytes):
+            in_block = msg_blocks[idx: idx + block_n_bytes]
+            mac = tdes_ecb.encrypt(xor_bytes(mac, in_block))
+        return mac
+
+    @classmethod
+    def cbc_mac_single(cls, key: bytes, msg: bytes, IV=None) -> bytes:
+        """Calculate single DES CBC-MAC with final Triple DES CBC-MAC"""
+        if not len(key) in (16, 24):
+            raise ValueError("Invalid key length")
+        des_ecb = cls(key[:8], MODE_ECB)
+        tdes_ecb = cls(key, MODE_ECB)
+        block_n_bytes = cls.BLOCK_N_BYTES
+
+        mac = IV if IV else block_n_bytes * b'\0'
+        msg_blocks = des_ecb.add_padding(msg)
+        final_block_idx = len(msg_blocks) - block_n_bytes
+        for idx in range(0, len(msg_blocks), block_n_bytes):
+            in_block = msg_blocks[idx: idx + block_n_bytes]
+            if idx < final_block_idx:
+                mac = des_ecb.encrypt(xor_bytes(mac, in_block))
+            else:
+                mac = tdes_ecb.encrypt(xor_bytes(mac, in_block))  # Final block
+        return mac
+
 
 class PRF:
     """Base class for algorithms usable as a pseudo-random function for KBKDF
