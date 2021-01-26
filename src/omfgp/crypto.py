@@ -23,6 +23,8 @@ if sys.implementation.name == 'micropython':
     class AES(ucryptolib.aes):
         # Block size in bytes
         BLOCK_N_BYTES = 128//8
+        # Allowed key length in bytes
+        ALLOWED_KEY_LEN = (16, 24, 32)
 
         def add_padding(self, data: bytes):
             """Adds 0x80... padding according to NIST 800-38A"""
@@ -46,6 +48,8 @@ else:
 
         # Block size in bytes
         BLOCK_N_BYTES = 128//8
+        # Allowed key length in bytes
+        ALLOWED_KEY_LEN = (16, 24, 32)
 
         def __init__(self, key, mode: int, IV=None):
             """Creates AES block cipher"""
@@ -83,6 +87,11 @@ class DES:
     # Block size in bytes
     BLOCK_N_BYTES = 64//8
 
+    # Allowed length of a single/triple DES key in bytes
+    ALLOWED_KEY_LEN = (8, 16, 24)
+    # Allowed length of a Triple DES key in bytes
+    TDES_ALLOWED_KEY_LEN = (16, 24)
+
     def __init__(self, key, mode: int, IV=None):
         """Creates DES block cipher"""
         mode = {MODE_ECB: pyDes.ECB, MODE_CBC: pyDes.CBC}.get(mode)
@@ -91,7 +100,7 @@ class DES:
 
         if len(key) == 8:
             self._cipher = pyDes.des(key, mode, IV)
-        elif len(key) in (16, 24):
+        elif len(key) in self.TDES_ALLOWED_KEY_LEN:
             self._cipher = pyDes.triple_des(key, mode, IV)
         else:
             raise ValueError("Invalid key length")
@@ -115,31 +124,29 @@ class DES:
     @classmethod
     def cbc_mac(cls, key: bytes, msg: bytes, IV=None) -> bytes:
         """Calculate DES CBC-MAC"""
-        if not len(key) in (8, 16, 24):
+        if not len(key) in cls.ALLOWED_KEY_LEN:
             raise ValueError("Invalid key length")
         tdes_ecb = cls(key, MODE_ECB)
-        block_n_bytes = cls.BLOCK_N_BYTES
-        mac = IV if IV else block_n_bytes * b'\0'
+        mac = IV if IV else cls.BLOCK_N_BYTES * b'\0'
         msg_blocks = tdes_ecb.add_padding(msg)
-        for idx in range(0, len(msg_blocks), block_n_bytes):
-            in_block = msg_blocks[idx: idx + block_n_bytes]
+        for idx in range(0, len(msg_blocks), cls.BLOCK_N_BYTES):
+            in_block = msg_blocks[idx: idx + cls.BLOCK_N_BYTES]
             mac = tdes_ecb.encrypt(xor_bytes(mac, in_block))
         return mac
 
     @classmethod
     def cbc_mac_single(cls, key: bytes, msg: bytes, IV=None) -> bytes:
         """Calculate single DES CBC-MAC with final Triple DES CBC-MAC"""
-        if not len(key) in (16, 24):
+        if not len(key) in cls.TDES_ALLOWED_KEY_LEN:
             raise ValueError("Invalid key length")
         des_ecb = cls(key[:8], MODE_ECB)
         tdes_ecb = cls(key, MODE_ECB)
-        block_n_bytes = cls.BLOCK_N_BYTES
 
-        mac = IV if IV else block_n_bytes * b'\0'
+        mac = IV if IV else cls.BLOCK_N_BYTES * b'\0'
         msg_blocks = des_ecb.add_padding(msg)
-        final_block_idx = len(msg_blocks) - block_n_bytes
-        for idx in range(0, len(msg_blocks), block_n_bytes):
-            in_block = msg_blocks[idx: idx + block_n_bytes]
+        final_block_idx = len(msg_blocks) - cls.BLOCK_N_BYTES
+        for idx in range(0, len(msg_blocks), cls.BLOCK_N_BYTES):
+            in_block = msg_blocks[idx: idx + cls.BLOCK_N_BYTES]
             if idx < final_block_idx:
                 mac = des_ecb.encrypt(xor_bytes(mac, in_block))
             else:

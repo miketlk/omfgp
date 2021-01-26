@@ -341,7 +341,7 @@ class GPCard:
         """
         if self._scp_inst is None:
             raise RuntimeError("Secure channel is required")
-        
+
         p1 = DeleteP1.LAST
         p2 = (DeleteP2.OBJECT_AND_RELATED if delete_related else
               DeleteP2.OBJECT_ONLY)
@@ -354,18 +354,16 @@ class GPCard:
 
         :param keys: static keys used to derive session keys and parameters
         :param progress_cb: progress callback, invoked with percent of
-        completeness (0-100) as a single argument
-
+            completeness (0-100) as a single argument
         :key key_version: key version, defaults to 0 (first available key)
         :key security_level: security level, a combination of scp.SecurityLevel
-        constants, by defaults to only MAC in command
-
+            constants, by defaults to only MAC in command
         :key host_challenge: host challenge override
         :key block_size: maximum allowed size of data block in bytes
         :key buggy_icv_counter: flag forcing increment of ICV counter even if
-        command has no data, defaults to False
-
+            command has no data, defaults to False
         :key min_scp_version: minimum acceptable SCP version, defaults to 0
+        :key scp02_i: i-parameter for SCP02 protocol, defaults to 0x55
         """
         self.close_secure_channel()
         if 'block_size' not in kwargs:
@@ -377,3 +375,7 @@ class GPCard:
         if self._scp_inst is not None:
             self._scp_inst.close()
             self._scp_inst = None
+
+    @property
+    def scp_version(self):
+        return self._scp_inst.version if self._scp_inst is not None else None

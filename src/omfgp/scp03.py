@@ -21,6 +21,15 @@ MAC_N_BYTES = 8
 CTR_N_BYTES = 16
 # Constant value of the class byte used for MAC calculation (0x84)
 MAC_CONST_CLA = ClaBits.GP | ClaBits.First.GP_SECURE
+# Allowed values for security_level parameter
+ALLOWED_SECURITY_LEVELS = (
+    SecurityLevel.CLEAR,
+    SecurityLevel.C_MAC,
+    SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC,
+    SecurityLevel.C_MAC | SecurityLevel.R_MAC,
+    SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC | SecurityLevel.R_MAC,
+    (SecurityLevel.C_DECRYPTION | SecurityLevel.R_ENCRYPTION |
+     SecurityLevel.C_MAC | SecurityLevel.R_MAC))
 
 
 class IParam:
@@ -81,11 +90,13 @@ def _compute_block_size(block_size_in: int,
 class SCP03:
     """Secure Channel Protocol version 03"""
     # SCP version
-    version = 3
+    _VERSION = 3
 
     def __init__(self, card_obj, iu_response, keys: StaticKeys,
                  security_level: SecurityLevel, host_challenge,
                  block_size, buggy_icv_counter, **options):
+        if security_level not in ALLOWED_SECURITY_LEVELS:
+            raise ValueError("Invalid security level")
         self._debug = card_obj.debug
         self._security_level = security_level
         self._intf_block_size = block_size
@@ -103,7 +114,7 @@ class SCP03:
         card_challenge = stream.read(8)
         card_cryptogram = stream.read(8)
         seq_ctr = stream.read(3)
-        if scp_id != 3:
+        if scp_id != self._VERSION:
             raise RuntimeError("Invalid INITIALIZE UPDATE response")
         if self._scp_i & IParam.PRNG and len(seq_ctr) != 3:
             raise RuntimeError("Invalid INITIALIZE UPDATE response")
@@ -157,9 +168,9 @@ class SCP03:
         """Derive session keys and initialize security parameters."""
         if len(keys.key_enc) != len(keys.key_mac) != len(keys.key_dek):
             raise ValueError("Keys must have the same length")
+        if len(keys.key_enc) not in crypto.AES.ALLOWED_KEY_LEN:
+            raise ValueError("Invalid length of an AES key")
         n_bits = 8 * len(keys.key_enc)
-        if n_bits != 128 and n_bits != 192 and n_bits != 256:
-            raise ValueError("Keys must be either 128, 192 or 256 bit")
 
         # Save Key-DEK as is
         self._key_dek = keys.key_dek
@@ -189,6 +200,7 @@ class SCP03:
         if apdu[OFF_LC] > self.block_size:
             raise ValueError("APDU too long for wrapping")
 
+        # TODO: encryption and R-MAC over non-segmented data for GET RESPONSE
         if apdu[OFF_INS] == GET_RESPONSE[OFF_INS]:
             return apdu
 
@@ -251,14 +263,14 @@ class SCP03:
     def encrypt_data(self, data):
         """Encrypt sensitive data with Key-DEK."""
         if len(data) == 0 or (len(data) % crypto.AES.BLOCK_N_BYTES) != 0:
-            raise ValueError("Data block must be multiple of cipher block")
+            raise ValueError("Data block must be a multiple of cipher block")
         icv = crypto.AES.BLOCK_N_BYTES * b'\0'
         return crypto.AES(self._key_dek, crypto.MODE_CBC, icv).encrypt(data)
 
     def decrypt_data(self, data):
         """Decrypt sensitive data with Key-DEK."""
         if len(data) == 0 or (len(data) % crypto.AES.BLOCK_N_BYTES) != 0:
-            raise ValueError("Data block must be multiple of cipher block")
+            raise ValueError("Data block must be a multiple of cipher block")
         icv = crypto.AES.BLOCK_N_BYTES * b'\0'
         return crypto.AES(self._key_dek, crypto.MODE_CBC, icv).decrypt(data)
 
@@ -273,3 +285,7 @@ class SCP03:
         del self._s_rmac_inst
         del self._mac_chain
         del self._enc_ctr
+
+    @property
+    def version(self):
+        return self._VERSION

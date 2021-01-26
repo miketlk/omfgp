@@ -54,7 +54,7 @@ def test_scp03_clear(mocker: MockerFixture):
         fake_card, host_challenge=unhex("2E6805A2847B9844"),
         progress_cb=progress_cb, security_level=SecurityLevel.CLEAR,
         block_size=213)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 213
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -89,7 +89,7 @@ def test_scp03_C_MAC(mocker: MockerFixture):
     scp = open_secure_channel(
         fake_card, host_challenge=unhex("68E9C8799FF8CB46"),
         progress_cb=progress_cb, block_size=213)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 205
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -136,7 +136,7 @@ def test_scp03_C_DECRYPTION_C_MAC(mocker: MockerFixture):
         progress_cb=progress_cb,
         security_level=SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC,
         block_size=213)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 191
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -175,7 +175,7 @@ def test_scp03_C_MAC_R_MAC(mocker: MockerFixture):
         progress_cb=progress_cb,
         security_level=SecurityLevel.R_MAC | SecurityLevel.C_MAC,
         block_size=213)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 205
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -227,7 +227,7 @@ def test_scp03_C_DECRYPTION_C_MAC_R_MAC(mocker: MockerFixture):
         security_level=(SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC |
                         SecurityLevel.R_MAC),
         block_size=213)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 191
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -283,7 +283,7 @@ def test_scp03_C_DECRYPTION_R_ENCRYPTION_C_MAC_R_MAC(mocker: MockerFixture):
             SecurityLevel.C_DECRYPTION | SecurityLevel.R_ENCRYPTION |
             SecurityLevel.C_MAC | SecurityLevel.R_MAC),
         block_size=250)
-    assert scp._VERSION == 3
+    assert scp.version == 3
     assert scp.block_size == 239
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
@@ -334,7 +334,7 @@ def test_scp03_Key_DEK():
     scp = open_secure_channel(
         fake_card, host_challenge=unhex("2E6805A2847B9844"),
         security_level=SecurityLevel.CLEAR)
-    assert scp._VERSION == 3
+    assert scp.version == 3
 
     # Test sensitive data encryption and decryption with Key-DEK
     pt = unhex("8B37F9148DF4BB25956BE6310C73C8DC"
@@ -347,3 +347,109 @@ def test_scp03_Key_DEK():
                "D5B7ABC1380A54164D39F0004D4C8016")
     assert scp.encrypt_data(pt) == ct
     assert scp.decrypt_data(ct) == pt
+
+def test_scp02_clear(mocker: MockerFixture):
+    # Establish SCP02 connection
+    # Security level: clear (no secure messaging)
+    fake_card = FakeCard({
+        INITIALIZE_UPDATE + b'\x00\x00': (
+            unhex("29EE4CC8D57E49F2"),
+            unhex("00008192001624074119FF02000943BE60D338C03D401EE6AB3F4851"),
+            SUCCESS),
+        EXTERNAL_AUTHENTICATE + b'\x00\x00': (
+            unhex("63BCBE99397C7AF712C8F93E06A2C86A"), b'', SUCCESS)
+    }, debug=True)
+    progress_cb = mocker.stub()
+    scp = open_secure_channel(
+        fake_card, host_challenge=unhex("29EE4CC8D57E49F2"),
+        progress_cb=progress_cb, security_level=SecurityLevel.CLEAR,
+        block_size=213)
+    assert scp.version == 2
+    assert scp.block_size == 213
+    progress_cb.assert_has_calls(
+        [call(0), call(50), call(100)], any_order=False)
+
+    # Wrap GET STATUS (0x80, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x80\x02' + card.encode("4F00")) ==
+            unhex("80F28002024F00"))
+    response = (unhex("E32A4F08A0000001510000009F700107"
+                      "C5039EFE80C407A0000000620001CE02"
+                      "0100CC08A000000151000000"), SUCCESS)
+    assert scp.unwrap_response(*response) == response
+
+    # Wrap GET STATUS (0x40, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x40\x02' + card.encode("4F00")) ==
+            unhex("80F24002024F00"))
+    response = (b'', b'\x6A\x88')
+    assert scp.unwrap_response(*response) == response
+
+def test_scp02_C_MAC(mocker: MockerFixture):
+    # Establish SCP02 connection
+    # Security level: C-MAC
+    fake_card = FakeCard({
+        INITIALIZE_UPDATE + b'\x00\x00': (
+            unhex("82A3A21CB6C33429"),
+            unhex("00008192001624074119FF0200072ECCEBB6BA1F3E30097FAD9545E1"),
+            SUCCESS),
+        EXTERNAL_AUTHENTICATE + b'\x01\x00': (
+            unhex("BCC41C65CCE079CBBDD151B575990774"), b'', SUCCESS)
+    }, debug=True)
+    progress_cb = mocker.stub()
+    scp = open_secure_channel(
+        fake_card, host_challenge=unhex("82A3A21CB6C33429"),
+        progress_cb=progress_cb, security_level=SecurityLevel.C_MAC,
+        block_size=255)
+    assert scp.version == 2
+    assert scp.block_size == 247
+    progress_cb.assert_has_calls(
+        [call(0), call(50), call(100)], any_order=False)
+
+    # Wrap GET STATUS (0x80, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x80\x02' + card.encode("4F00")) ==
+            unhex("84F280020A4F00985622A12C1141EB"))
+    response = (unhex("E32A4F08A0000000030000009F700101"
+                      "C5039EFE80C407A0000000620001CE02"
+                      "0100CC08A000000003000000"), SUCCESS)
+    assert scp.unwrap_response(*response) == response
+
+    # Wrap GET STATUS (0x40, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x40\x02' + card.encode("4F00")) ==
+            unhex("84F240020A4F00BD32ECB2EF4C8CB9"))
+    response = (b'', b'\x6A\x88')
+    assert scp.unwrap_response(*response) == response
+
+def test_scp02_C_DECRYPTION_C_MAC(mocker: MockerFixture):
+    # Establish SCP02 connection
+    # Security level: C-DECRYPTION and C-MAC
+    fake_card = FakeCard({
+        INITIALIZE_UPDATE + b'\x00\x00': (
+            unhex("5D6202D0DC283771"),
+            unhex("00008192001624074119FF020003B500CF85241ECF6C322FF0D7D73A"),
+            SUCCESS),
+        EXTERNAL_AUTHENTICATE + b'\x03\x00': (
+            unhex("20381F0855F50CD2A6CA647EAD03D3C8"), b'', SUCCESS)
+    }, debug=True)
+    progress_cb = mocker.stub()
+    scp = open_secure_channel(
+        fake_card, host_challenge=unhex("5D6202D0DC283771"),
+        progress_cb=progress_cb,
+        security_level=SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC,
+        block_size=255)
+    assert scp.version == 2
+    assert scp.block_size == 239
+    progress_cb.assert_has_calls(
+        [call(0), call(50), call(100)], any_order=False)
+
+    # Wrap GET STATUS (0x80, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x80\x02' + card.encode("4F00")) ==
+            unhex("84F2800210B017D0B1B05C5B30209663BB7F09789D"))
+    response = (unhex("E32A4F08A0000000030000009F700101"
+                      "C5039EFE80C407A0000000620001CE02"
+                      "0100CC08A000000003000000"), SUCCESS)
+    assert scp.unwrap_response(*response) == response
+
+    # Wrap GET STATUS (0x40, 0x02) and unwrap response
+    assert (scp.wrap_apdu(GET_STATUS + b'\x40\x02' + card.encode("4F00")) ==
+            unhex("84F2400210B017D0B1B05C5B30720DD450A0196554"))
+    response = (b'', b'\x6A\x88')
+    assert scp.unwrap_response(*response) == response

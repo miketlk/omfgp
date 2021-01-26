@@ -21,7 +21,8 @@ def open_secure_channel(card_obj, keys: StaticKeys = DEFAULT_KEYS,
                'host_challenge': crypto.random(HOST_CHALLENGE_SIZE),
                'block_size': commands.LC_MAX,
                'buggy_icv_counter': False,
-               'min_scp_version': 0}
+               'min_scp_version': 0,
+               'scp02_i': 0x55}
     options.update(kwargs)
     key_version = options['key_version']
     options['security_level'] = SecurityLevel(options['security_level'])
@@ -51,8 +52,10 @@ def open_secure_channel(card_obj, keys: StaticKeys = DEFAULT_KEYS,
 
     # Create protocol wrapper according to received SCP version
     if iu_response[IU_RESP_SCP_ID] < options['min_scp_version']:
-        raise RuntimeError("")
-    if iu_response[IU_RESP_SCP_ID] == 3:
+        raise RuntimeError("Card requests SCP version lower than allowed")
+    if iu_response[IU_RESP_SCP_ID] == 2:
+        obj = scp02.SCP02(card_obj, iu_response, keys, **options)
+    elif iu_response[IU_RESP_SCP_ID] == 3:
         obj = scp03.SCP03(card_obj, iu_response, keys, **options)
     else:
         raise RuntimeError(
