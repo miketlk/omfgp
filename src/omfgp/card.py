@@ -81,9 +81,9 @@ def code_apdu(apdu_obj: APDU) -> bytes:
 
 
 class GPCard:
-    def __init__(self, connection=None, debug=False, progress_cb=None):
+    def __init__(self, connection=None, reader=None, debug=False, progress_cb=None):
         if connection is None:
-            connection = get_connection()
+            connection = get_connection(reader)
         self.connection = connection
         self.debug = debug
         self.progress_cb = progress_cb

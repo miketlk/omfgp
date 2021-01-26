@@ -1,5 +1,21 @@
+import sys
 import omfgp as gp
 import time
+if gp.USES_USCARD:
+    from uscard import Reader
+    from machine import Pin
+
+
+def get_default_reader():
+    """Return default smart card reader."""
+    if gp.USES_USCARD:
+        return uscard.Reader(name="Smart card reader",
+                             ifaceId=2,
+                             ioPin=Pin.cpu.A2, clkPin=Pin.cpu.A4,
+                             rstPin=Pin.cpu.G10, presPin=Pin.cpu.C2,
+                             pwrPin=Pin.cpu.C5)
+    else:
+        return None
 
 
 def card_status(card: gp.card.GPCard) -> list:
@@ -25,7 +41,7 @@ if __name__ == '__main__':
     # Loads applet to the card using first available reader and default keys
     # If the applet already exists it is deleted prior to load
 
-    card = gp.card.GPCard(debug=True)
+    card = gp.card.GPCard(reader=get_default_reader(), debug=True)
     try:
         select_rsp = card.select()
         print("SELECT response:", select_rsp)

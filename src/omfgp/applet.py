@@ -2,7 +2,7 @@
 
 from io import BytesIO
 from collections import namedtuple
-from .util import AID
+from .util import AID, merge_dicts
 
 # Extended component tags used to store selected metadata - NON-STANDARD!
 _EXTENDED_TAGS = {
@@ -13,7 +13,7 @@ _EXTENDED_TAGS = {
 }
 
 # Tag names
-_TAG_NAMES = {
+_TAG_NAMES = merge_dicts({
     1: 'Header',
     2: 'Directory',
     3: 'Applet',
@@ -25,9 +25,9 @@ _TAG_NAMES = {
     9: 'RefLocation',
     10: 'Export',
     11: 'Descriptor',
-    12: 'Deubg',
-    **{v: k for k, v in _EXTENDED_TAGS.items()}
-}
+    12: 'Deubg'},
+    {v: k for k, v in _EXTENDED_TAGS.items()})
+
 
 # A set of items loaded in the JavaCard in the right order
 _LOAD_LIST = ['Header', 'Directory', 'Import', 'Applet', 'Class', 'Method',
@@ -154,8 +154,8 @@ class Applet:
         if offset < 0 or size < 0:
             raise ValueError("Trying to access outside of stored data")
         if offset + size > len(self):
-          size = len(self) - offset
-          size = size if size >= 0 else 0
+            size = len(self) - offset
+            size = size if size >= 0 else 0
         data = bytearray()
         rm_size = size
         load_off = 0

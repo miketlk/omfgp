@@ -2,23 +2,35 @@
 
 """Utility functions"""
 
+import sys
 from binascii import hexlify
-from smartcard.System import readers
-from smartcard.CardConnection import CardConnection
 
+# True when uscard (Micropython) module is used to communicate with a card
+USES_USCARD = sys.implementation.name == 'micropython'
+# True when pyscard module is used to communicate with a card
+USES_PYSCARD = not USES_USCARD
 
-def get_reader(name=""):
-    """Returns first found reader """
-    rarr = [r for r in readers() if name in str(r)]
-    if len(rarr) == 0:
-        raise RuntimeError("Reader not found")
-    return rarr[0]
+if USES_USCARD:
+    from uscard import CardConnection
+else:
+    from smartcard.System import readers
+    from smartcard.CardConnection import CardConnection
+
+    def get_reader(name=""):
+        """Return first found reader."""
+        rarr = [r for r in readers() if name in str(r)]
+        if len(rarr) == 0:
+            raise RuntimeError("Reader not found")
+        return rarr[0]
 
 
 def get_connection(reader=None, protocol=CardConnection.T1_protocol):
-    """Establish connection with a card"""
+    """Establish connection with a card."""
     if reader is None:
-        reader = get_reader()
+        if USES_USCARD:
+            raise ValueError("Reader is required")
+        else:
+            reader = get_reader()
     connection = reader.createConnection()
     connection.connect(protocol)
     return connection
@@ -110,3 +122,16 @@ def inlist(x) -> list:
     if isinstance(x, list):
         return x
     return [x]
+
+
+def merge_dicts(*dict_args):
+    """
+    Given any number of dictionaries, shallow copy and merge into a new dict,
+    precedence goes to key-value pairs in latter dictionaries.
+
+    This function is needed for compatibility with Python versions before 3.5.
+    """
+    result = {}
+    for dictionary in dict_args:
+        result.update(dictionary)
+    return result
