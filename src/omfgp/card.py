@@ -1,4 +1,4 @@
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 from collections import namedtuple
 import hashlib
 from .util import *
@@ -38,7 +38,7 @@ class ISOException(Exception):
 def encode(data=b''):
     # str -> hex
     if isinstance(data, str):
-        data = bytes.fromhex(data)
+        data = unhexlify(data)
     return bytes([len(data)])+bytes(data)
 
 
@@ -50,7 +50,7 @@ def parse_apdu(apdu) -> APDU:
         res = APDU(*apdu)
     else:
         if isinstance(apdu, str):
-            apdu = bytes.fromhex(apdu)
+            apdu = unhexlify(apdu)
         if len(apdu) < 5:
             raise ValueError("Invalid APDU")
         data = apdu[5:]
@@ -73,7 +73,7 @@ def code_apdu(apdu_obj: APDU) -> bytes:
     if isinstance(apdu_obj, (bytes, bytearray)):
         return apdu_obj
     elif isinstance(apdu_obj, str):
-        return bytes.fromhex(apdu_obj)
+        return unhexlify(apdu_obj)
     elif not isinstance(apdu_obj, APDU):
         apdu_obj = APDU(*apdu_obj)
 

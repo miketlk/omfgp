@@ -1,6 +1,7 @@
 """Common definition for Secure Channel Protocols"""
 
 from collections import namedtuple
+from binascii import unhexlify
 
 # Size of MAC in bytes
 HOST_CHALLENGE_SIZE = 8
@@ -15,9 +16,9 @@ StaticKeys = namedtuple('StaticKeys', ['key_enc', 'key_mac', 'key_dek'])
 
 # Default keys
 DEFAULT_KEYS = StaticKeys(
-    key_enc=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
-    key_mac=bytes.fromhex("404142434445464748494A4B4C4D4E4F"),
-    key_dek=bytes.fromhex("404142434445464748494A4B4C4D4E4F"))
+    key_enc=unhexlify("404142434445464748494A4B4C4D4E4F"),
+    key_mac=unhexlify("404142434445464748494A4B4C4D4E4F"),
+    key_dek=unhexlify("404142434445464748494A4B4C4D4E4F"))
 
 class SecurityLevel(int):
     """ Bit values used by EXTERNAL AUTHENTICATE command"""
