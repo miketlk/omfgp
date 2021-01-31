@@ -88,7 +88,12 @@ def test_Privileges_exhaustive():
 def test_FileLifeCycle():
     assert FileLifeCycle(0x01) == 0x01
     assert FileLifeCycle('LOADED') == 0x01
+    assert FileLifeCycle(0x01) == FileLifeCycle(0x01)
+    assert FileLifeCycle(0x01) != FileLifeCycle(0x02)
+    assert FileLifeCycle('LOADED') == FileLifeCycle('LOADED')
     assert str(FileLifeCycle(0x01)) == 'LOADED'
+    assert FileLifeCycle(0x01) == 'LOADED'
+    assert FileLifeCycle(0x01) != 'LOADEDX'
     assert str(FileLifeCycle(123)) == '123'
     assert FileLifeCycle(0x01).in_state('LOADED')
     assert not FileLifeCycle(0x02).in_state('LOADED')
@@ -105,11 +110,15 @@ def test_FileLifeCycle():
 
 
 def test_AppLifeCycle():
+    assert AppLifeCycle(0b00000011) == 'INSTALLED'
+    assert AppLifeCycle(0b00000011) == 0b00000011
     assert str(AppLifeCycle(0b00000011)) == 'INSTALLED'
-    assert str(AppLifeCycle(0b00000111)) == 'SELECTABLE'
+    assert AppLifeCycle(0b00000111) == 'SELECTABLE'
     assert AppLifeCycle(0b00000011).in_state('INSTALLED')
     assert AppLifeCycle(0b00000111).in_state('SELECTABLE')
     for x in range(1, 15):
+        assert AppLifeCycle(x << 3 | 0b00000111) == x << 3 | 0b00000111
+        assert AppLifeCycle(x << 3 | 0b00000111) == ("APP_SPECIFIC%d" % x)
         assert str(AppLifeCycle(x << 3 | 0b00000111)) == ("APP_SPECIFIC%d" % x)
         assert AppLifeCycle(x << 3 | 0b00000111).in_state("APP_SPECIFIC%d" % x)
     for x in range(32):

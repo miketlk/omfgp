@@ -2,7 +2,7 @@ import sys
 import omfgp as gp
 import time
 if gp.USES_USCARD:
-    from uscard import Reader
+    import uscard
     from machine import Pin
 
 
@@ -37,7 +37,7 @@ def card_status(card: gp.card.GPCard) -> list:
     return [s.aid for s in file_status]
 
 
-if __name__ == '__main__':
+def main(applet_file: str = 'examples/teapot_applet.ijc'):
     # Loads applet to the card using first available reader and default keys
     # If the applet already exists it is deleted prior to load
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         card.open_secure_channel()
         card_file_aid_list = card_status(card)
 
-        file = open("examples/teapot_applet.ijc", "rb")
+        file = open(applet_file, 'rb')
         applet = gp.applet.Applet.read_from(file)
 
         if applet.package_aid in card_file_aid_list:
@@ -62,3 +62,6 @@ if __name__ == '__main__':
 
     finally:
         card.disconnect()
+
+if __name__ == '__main__':
+    main()

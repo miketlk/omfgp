@@ -33,6 +33,8 @@ def get_connection(reader=None, protocol=CardConnection.T1_protocol):
             reader = get_reader()
     connection = reader.createConnection()
     connection.connect(protocol)
+    if USES_USCARD:
+        connection.setTimeouts(responseTimeout=4_000)
     return connection
 
 
@@ -50,6 +52,9 @@ class AID(bytes):
 
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, str(self))
+
+    def __len__(self):
+        return len(bytes(self))
 
 
 def int_to_bytes_big_endian(x: int, n_bytes: int) -> bytearray:

@@ -68,10 +68,10 @@ def _derive_key(base_key: bytes, kdc: bytes, data: bytes) -> bytes:
 def _compute_block_size(block_size_in: int,
                         security_level: SecurityLevel) -> int:
     """Compute maximum block size for the specified security level."""
-    if block_size_in <= 0 or block_size_in > LC_MAX:
+    if block_size_in <= 0:
         raise ValueError("Invalid block size")
 
-    block_size = block_size_in
+    block_size = block_size_in if block_size_in <= LC_MAX else LC_MAX
     if security_level & SecurityLevel.C_MAC:
         block_size -= MAC_N_BYTES
     if security_level & SecurityLevel.C_DECRYPTION:

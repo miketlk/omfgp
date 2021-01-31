@@ -6,12 +6,18 @@ from . import pyDes
 
 try:
     from rng import get_random_bytes
-    # Alias for random(n) function
+    # Alias for crypto.random(n) function
     random = get_random_bytes
 except:
     import os
-    # Alias for random(n) function
-    random = os.urandom
+    try:
+        # Alias for crypto.random(n) function
+        random = os.urandom
+    except:
+        def random(nbytes):
+            """Read random bytes from /dev/urandom"""
+            with open("/dev/urandom", "rb") as f:
+                return f.read(nbytes)
 
 if sys.implementation.name == 'micropython':
     import ucryptolib

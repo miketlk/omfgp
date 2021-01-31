@@ -400,7 +400,6 @@ def test_scp02_C_MAC(mocker: MockerFixture):
         progress_cb=progress_cb, security_level=SecurityLevel.C_MAC,
         block_size=255)
     assert scp.version == 2
-    assert scp.block_size == 247
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
 
@@ -436,7 +435,6 @@ def test_scp02_C_DECRYPTION_C_MAC(mocker: MockerFixture):
         security_level=SecurityLevel.C_DECRYPTION | SecurityLevel.C_MAC,
         block_size=255)
     assert scp.version == 2
-    assert scp.block_size == 239
     progress_cb.assert_has_calls(
         [call(0), call(50), call(100)], any_order=False)
 

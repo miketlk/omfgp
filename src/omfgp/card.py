@@ -88,7 +88,7 @@ class GPCard:
         self.debug = debug
         self.progress_cb = progress_cb
         self._scp_inst = None
-        self._block_size = 256
+        self._block_size = commands.LC_MAX
 
     def transmit(self: bytes, apdu: bytes) -> tuple:
         """Raw function from pyscard module with byte string API"""
@@ -139,6 +139,8 @@ class GPCard:
         prop_data = fci.get(0xA5, tlv.TLV())
         sd_data = prop_data.get(0x73, tlv.TLV())
         self._block_size = ord(prop_data.get(0x9F65, b'\xff'))
+        if self._block_size > commands.LC_MAX:
+            self._block_size = commands.LC_MAX
         return SelectResponse(aid, sd_data, self._block_size)
 
     def get_status(self, kind: int = StatusKind.APP_SSD,

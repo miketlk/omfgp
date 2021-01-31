@@ -4,13 +4,6 @@ from io import BytesIO
 from collections import OrderedDict
 from .util import bytes_to_int_big_endian
 
-# TODO: move to other place
-TAGS = {
-    (0x6f, 0x84): "ISD AID",  # Issuer security domain applet ID
-    (0x6f, 0xa5): None,  # unknown
-
-}
-
 # "Constructed data object" flag, if set the object has children
 _TAG_CONSTRUCTED_BIT = 0b100000
 # Bit pattern indicating more tag byte(s), used in the first byte only
@@ -80,9 +73,11 @@ def serialize_length(length: int):
         return bytes([0x83, length >> 16, (length >> 8) & 0xff, length & 0xff])
     raise RuntimeError("Unsupported TLV length")
 
+
 def lv_encode(data: bytes) -> bytes:
     """Encodes data as length-value"""
     return serialize_length(len(data)) + data
+
 
 class TLV(OrderedDict):
     """BER-TLV object"""

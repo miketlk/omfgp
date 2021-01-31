@@ -30,8 +30,8 @@ OFF_LC = 4
 # Offset of the Data field within APDU
 OFF_DATA = 5
 
-# Maximum allowed value of LC field
-LC_MAX = 255
+# Maximum allowed value of LC field to fit the APDU into one T=1 frame
+LC_MAX = 248
 
 class ClaBits:
     """Bits of the class byte"""

@@ -33,8 +33,8 @@ class SecurityLevel(int):
     # Response encryption (by card)
     R_ENCRYPTION = 0b00100000
 
-    def __new__(cls, value, *args, **kwargs):
-        return super(cls, cls).__new__(cls, cls._normalize(value))
+    def __new__(cls, value):
+        return cls._normalize(value)
 
     @classmethod
     def _normalize(cls, level):

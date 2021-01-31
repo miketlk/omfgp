@@ -80,38 +80,52 @@ class Privileges(list):
         return priv_bytes[:n_bytes]
 
 
-class _LifeCycleBase(int):
+class _LifeCycleBase:
     """Base class for card object life cycle."""
 
     # Mapping between life cycle name and (set_bits, clear_bits)
     _MAP = {}
 
-    def __new__(cls, value):
+    def __init__(self, value):
         if isinstance(value, str):
             try:
-                value = cls._MAP[value][0]
+                self.value = self._MAP[value][0]
             except KeyError:
                 raise ValueError
-
-        if 0x00 <= value <= 0xFF:
-            return super(_LifeCycleBase, cls).__new__(cls, value)
-        raise ValueError
+        elif isinstance(value, int) and (0x00 <= value <= 0xFF):
+            self.value = value
+        else:
+            raise ValueError
 
     def in_state(self, state: str) -> bool:
         """Check if object is in given lifecycle state."""
         bits = self._MAP.get(state)
         if bits is None:
             raise ValueError("Invalid state")
-        return self & bits[0] == bits[0] and self & bits[1] == 0
+        return self.value & bits[0] == bits[0] and self.value & bits[1] == 0
 
     def __str__(self):
         for key, bits in self._MAP.items():
-            if self & bits[0] == bits[0] and self & bits[1] == 0:
+            if self.value & bits[0] == bits[0] and self.value & bits[1] == 0:
                 return key
         return str(int(self))
 
     def __repr__(self):
         return "%s(%s)" % (type(self).__name__, str(self))
+
+    def __int__(self):
+        return self.value
+
+    def __eq__(self, other):
+        if isinstance(other, _LifeCycleBase):
+            return self.value == other.value
+        elif isinstance(other, str):
+            return str(self) == other
+        else:
+            return self.value == other
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class FileLifeCycle(_LifeCycleBase):
@@ -132,27 +146,27 @@ class AppLifeCycle(_LifeCycleBase):
         'LOCKED': (0b10000011, 0b00000000)
     }
 
-    def __new__(cls, value):
+    def __init__(self, value):
         if isinstance(value, str) and value.startswith('APP_SPECIFIC'):
             app_state = int(value[len('APP_SPECIFIC'):])
             if not (1 <= app_state <= 15):
                 raise ValueError
             value = (app_state << 3) | 0b00000111
 
-        return super(cls, cls).__new__(cls, value)
+        return super().__init__(value)
 
     def in_state(self, state: str) -> bool:
         """Check if object is in given lifecycle state."""
         if state.startswith('APP_SPECIFIC'):
             app_state = int(state[len('APP_SPECIFIC'):])
             value = (app_state << 3) | 0b00000111
-            return self == value
-        return super(AppLifeCycle, self).in_state(state)
+            return self.value == value
+        return super().in_state(state)
 
     def __str__(self):
-        if 0b00000111 < self <= 0b01111111:
-            return 'APP_SPECIFIC' + str((self >> 3) & 0b1111)
-        return super(AppLifeCycle, self).__str__()
+        if 0b00000111 < self.value <= 0b01111111:
+            return 'APP_SPECIFIC' + str((self.value >> 3) & 0b1111)
+        return super().__str__()
 
 
 class SDLifeCycle(_LifeCycleBase):
@@ -229,12 +243,14 @@ class LoadP1:
     # Last block in the sequence
     LAST = 0b10000000
 
+
 class DeleteP1:
     """Bits of P1 parameter of the DELETE command"""
     # Last (or only) command
     LAST = 0b00000000
     # More DELETE commands
     MORE = 0b10000000
+
 
 class DeleteP2:
     """Bits of P2 parameter of the DELETE command"""
