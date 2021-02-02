@@ -34,7 +34,7 @@ def get_connection(reader=None, protocol=CardConnection.T1_protocol):
     connection = reader.createConnection()
     connection.connect(protocol)
     if USES_USCARD:
-        connection.setTimeouts(responseTimeout=4_000)
+        connection.setTimeouts(maxTimeout=2_000, responseTimeout=2_000)
     return connection
 
 
