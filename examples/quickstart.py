@@ -1,18 +1,67 @@
+import sys
 import omfgp as gp
 import time
+if gp.USES_USCARD:
+    import uscard
+    from machine import Pin
+
+
+def get_default_reader():
+    """Return default smart card reader."""
+    if gp.USES_USCARD:
+        return uscard.Reader(name="Smart card reader",
+                             ifaceId=2,
+                             ioPin=Pin.cpu.A2, clkPin=Pin.cpu.A4,
+                             rstPin=Pin.cpu.G10, presPin=Pin.cpu.C2,
+                             pwrPin=Pin.cpu.C5)
+    else:
+        return None
+
+
+def card_status(card: gp.card.GPCard) -> list:
+    """Display all kinds of smart card status information returning file list
+
+    :param card: instance of smart card interface
+    :return: list of load file AID
+    """
+    isd_status = card.get_status(gp.StatusKind.ISD)
+    app_sd_status = card.get_status(gp.StatusKind.APP_SSD)
+    file_mod_status = card.get_status(gp.StatusKind.LOAD_FILES_MOD)
+    file_status = card.get_status(gp.StatusKind.LOAD_FILES)
+
+    print("\n=== ISD status ===\n", isd_status, "\n")
+    print("\n=== Apps and SDs ===\n", app_sd_status, "\n")
+    print("\n=== Load files & modules ===\n", file_mod_status, "\n")
+    print("\n=== Load files only ===\n", file_status, "\n")
+
+    return [s.aid for s in file_status]
+
+
+def main(applet_file: str = 'examples/teapot_applet.ijc'):
+    # Loads applet to the card using first available reader and default keys
+    # If the applet already exists it is deleted prior to load
+
+    card = gp.card.GPCard(reader=get_default_reader(), debug=True)
+    try:
+        select_rsp = card.select()
+        print("SELECT response:", select_rsp)
+
+        card.open_secure_channel()
+        card_file_aid_list = card_status(card)
+
+        file = open(applet_file, 'rb')
+        applet = gp.applet.Applet.read_from(file)
+
+        if applet.package_aid in card_file_aid_list:
+            print("Deleting load file '%s' and related applets" %
+                  applet.package_aid)
+            card.delete_object(applet.package_aid)
+
+        card.load_applet(applet, target_sd_aid=select_rsp.aid)
+        card_status(card)
+
+    finally:
+        card.disconnect()
 
 if __name__ == '__main__':
-    # GP card instance using
-    # first available reader
-    # also opens connection to it
-    card = gp.card.GPCard()
-    d = card.select()
-    tlv = gp.tlv.TLV.deserialize(d, levels=2)
-    print(tlv)
-    # 6f10
-    #   8408
-    #     a000000151000000
-    #   a504
-    #     9f6501ff
-    ISD = tlv.get(0x6f, {}).get(0x84, b"")
-    print(ISD.hex())
+    main()
